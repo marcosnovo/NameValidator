@@ -127,7 +127,10 @@ export const contextSensitiveSlurs = {
     'flaco', 'flaca', 'flacos', 'flacucho',
     'calvo', 'calva', 'calvos',
     // ── Sexualidad usada como insulto en contexto deportivo
-    'gay', 'gays',
+    // OJO: 'gay'/'gays' QUITADOS — el INE registra "Gay" como apellido
+    // legítimo en España (~5000 personas). Bloquearlo causaría falsos
+    // positivos en personas con ese apellido. La AI detectará intención
+    // homofóbica por contexto (estructura nombre+apellido vs broma).
     'maricon', 'maricona', 'mariquita',
     'bicha',
     'puto', 'puta',
@@ -144,7 +147,8 @@ export const contextSensitiveSlurs = {
     'old', 'oldie',
     'ugly',
     'dwarf', 'midget',
-    'gay', 'fag', 'queer',
+    // 'gay' quitado — coincide con apellido Gay de España (legítimo INE)
+    'fag', 'queer',
     'jewish', 'jew',
   ]),
   fr: new Set([
@@ -158,7 +162,8 @@ export const contextSensitiveSlurs = {
     'vieux', 'vieille', 'vieilles',
     'moche', 'moches',
     'nain', 'naine',
-    'gay', 'pédé', 'pede', 'tapette',
+    // 'gay' quitado — coincide con apellido Gay (legítimo INE España)
+    'pédé', 'pede', 'tapette',
     'juif', 'juive',
   ]),
   pt: new Set([
@@ -172,7 +177,8 @@ export const contextSensitiveSlurs = {
     'gordo', 'gordos', 'gorda',
     'velho', 'velha', 'velhos',
     'feio', 'feia', 'feios',
-    'gay', 'viado', 'bicha',
+    // 'gay' quitado — coincide con apellido Gay (legítimo INE España)
+    'viado', 'bicha',
     'judeu', 'judia',
   ]),
 };

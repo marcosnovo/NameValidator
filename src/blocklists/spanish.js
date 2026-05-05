@@ -41,6 +41,25 @@ export const spanishProfanity = [
   'pedo', 'pedos', 'pedorro',
   'pajero', 'pajera', 'pajearse', 'pajaso',
   'paja', 'pajilla', 'pajillero',
+  // ── Variantes augmentativas de "paja" (masturbación). Estas formas son
+  //    inequívocamente vulgares en castellano — no aparecen como
+  //    subcadena en ningún apellido o nombre legítimo conocido.
+  'pajote', 'pajotes', 'pajotazo',
+  'unpajote', 'lapajote', 'mepajote', 'tepajote', 'cuantopajote',
+  'unapajota', 'mipajote', 'cumpajote',
+  'pajeo', 'pajeos', 'pajeas', 'pajeazo',
+  'mepajeas', 'tepajeas', 'mepajeo', 'tepajeo',
+  // ── Frases enteras vulgares (ningún nombre legítimo las contiene)
+  'necesitomear', 'nesitomear', 'kieromear', 'quieromear',
+  'nesitocagar', 'quierocagar', 'gustacagar',
+  'nesitofollar', 'quierofollar',
+  'metelapolla', 'meteme la polla', 'metemelapolla',
+  'chupamelapolla', 'mamamelapolla',
+  'comemeelculo', 'comemelapolla', 'comemelo todo',
+  'lametelculo', 'lameelculo',
+  'tequemea', 'mequemeo',
+  // Ya cubiertas pero refuerzo
+  'mequierofollar', 'tequierofollar',
   'puton', 'putona', 'zorra', 'zorron',
   'guarra', 'guarro', 'guarrada', 'guarradas',
   'ramera', 'rameras',

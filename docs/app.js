@@ -333,6 +333,29 @@ const EXAMPLES = [
     ],
   },
   {
+    title: 'Re-segmentaciones generativas (ideal para probar la IA)',
+    cls: 'bad',
+    items: [
+      'Kepa Jote Mecho',
+      'María Unpajote',
+      'Ione Cesi Tomear',
+      'María Tepajote',
+      'Pepe Necesitomear',
+      'Ana Comemelapolla',
+    ],
+  },
+  {
+    title: 'Apellidos sospechosos pero LEGÍTIMOS (INE) — deben pasar',
+    cls: 'ok',
+    items: [
+      'Carlos Gay López',
+      'María Gay Sánchez',
+      'Juan Gay',
+      'María Mearín',
+      'Sergio Iniesta García',
+    ],
+  },
+  {
     title: 'Trampas de espaciado / leet / inversión',
     cls: 'bad',
     items: ['M E S S I', 'F.U.C.K', 'pu7a', 'atup', 'ANO'],
