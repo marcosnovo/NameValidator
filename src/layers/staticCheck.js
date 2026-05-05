@@ -1,66 +1,84 @@
 // Capa estática: busca cada palabra prohibida como subcadena en TODAS las
-// vistas del input (concatenado sin espacios, invertido, deleeted, etc.).
-// Es la primera defensa: rapidísima, determinista, y atrapa el 80% de los
-// casos obvios sin gastar un solo token de IA.
+// vistas del input (concatenado sin espacios, invertido, deleeted, fonética
+// castellana…). Es la primera defensa: rapidísima, determinista, y atrapa
+// el grueso de los casos sin gastar tokens de IA.
 
 import { spanishProfanity, spanishJokeNames, spanishExactOnly } from '../blocklists/spanish.js';
 import { englishProfanity, englishJokeNames, englishExactOnly } from '../blocklists/english.js';
 import { frenchProfanity, frenchJokeNames, frenchExactOnly } from '../blocklists/french.js';
-import { rivalPlayerFullNames, antiMadridChants } from '../blocklists/realMadrid.js';
+import {
+  rivalPlayerFullNames,
+  antiMadridChants,
+  uniqueAloneSurnames,
+  commonAloneSurnames,
+} from '../blocklists/realMadrid.js';
+import { phoneticEs } from '../normalize.js';
 
-// Aplana todas las palabras-broma a sus formas concatenadas.
+// Aplana todas las palabras-broma a sus formas concatenadas y precalcula su
+// versión fonética castellana, para que la búsqueda sea O(1) lookup en cada
+// pase.
 const jokeForms = [
-  ...spanishJokeNames.map(([form, why]) => ({ form, why, lang: 'es' })),
-  ...englishJokeNames.map(([form, why]) => ({ form, why, lang: 'en' })),
-  ...frenchJokeNames.map(([form, why]) => ({ form, why, lang: 'fr' })),
+  ...spanishJokeNames.map(([form, why]) => ({ form, why, lang: 'es', phonetic: phoneticEs(form) })),
+  ...englishJokeNames.map(([form, why]) => ({ form, why, lang: 'en', phonetic: null })),
+  ...frenchJokeNames.map(([form, why]) => ({ form, why, lang: 'fr', phonetic: null })),
 ];
 
-// Patrones específicos del contexto Real Madrid (jugadores rivales con
-// nombre+apellido completo + chants antimadridistas).
 const realMadridForms = [
-  ...rivalPlayerFullNames.map(([form, why]) => ({ form, why, category: 'rival-player' })),
-  ...antiMadridChants.map(([form, why]) => ({ form, why, category: 'anti-madrid' })),
+  ...rivalPlayerFullNames.map(([form, why]) => ({ form, why, category: 'rival-player', phonetic: phoneticEs(form) })),
+  ...antiMadridChants.map(([form, why]) => ({ form, why, category: 'anti-madrid', phonetic: phoneticEs(form) })),
 ];
 
-function findHit(haystacks, needle, exactOnly) {
-  for (const view of haystacks) {
-    if (!view) continue;
-    if (exactOnly) {
-      if (view === needle) return view;
-      // también se acepta como token aislado entre espacios:
-      if ((' ' + view + ' ').includes(' ' + needle + ' ')) return view;
-    } else {
-      if (view.includes(needle)) return view;
-    }
+// Apellidos rivales SOLOS — la comparación es exact-equals contra la
+// concatenación normalizada (no substring). Eso permite que "Carlos Messi
+// García" pase (concat: carlosmessigarcia ≠ messi) pero "M E S S I" no
+// (concat: messi == messi).
+const aloneRivalSurnames = [
+  ...uniqueAloneSurnames.map(([form, why]) => ({ form, why, severity: 'high' })),
+  ...commonAloneSurnames.map(([form, why]) => ({ form, why, severity: 'medium' })),
+];
+
+function findHitInTokens(tokens, needle) {
+  // Match a token completo o frase completa entre espacios.
+  for (const t of tokens) if (t === needle) return t;
+  // Frase: si la palabra contiene espacios, comparamos tokens consecutivos.
+  if (needle.includes(' ')) {
+    const joined = ' ' + tokens.join(' ') + ' ';
+    if (joined.includes(' ' + needle + ' ')) return needle;
   }
   return null;
 }
 
-export function staticCheck(variants) {
-  const issues = [];
+function findHitAsSubstring(haystacks, needle) {
+  for (const view of haystacks) {
+    if (!view) continue;
+    if (view.includes(needle)) return view;
+  }
+  return null;
+}
 
-  // Set de "vistas" donde buscamos subcadenas.
+function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
   const haystacks = [
     variants.concatNoSpaces,
     variants.dedupedConcat,
     variants.reversedConcat,
     variants.deLeeted,
     variants.noDiacritics,
+    variants.phoneticEs,   // ← matches "devora melo" ↔ "deboramelo"
   ];
 
-  // Set de "vistas" tokenizadas para los exactos.
-  const tokenViews = variants.tokens;
-
-  // ── ES profanity
-  for (const word of spanishProfanity) {
-    const exactOnly = spanishExactOnly.has(word);
-    const hit = exactOnly
-      ? findHit(tokenViews, word, true)
-      : findHit(haystacks, word.replace(/\s/g, ''), false);
+  for (const word of list) {
+    const exactOnly = exactOnlySet.has(word);
+    const cleaned = word.replace(/\s/g, '');
+    let hit;
+    if (exactOnly) {
+      hit = findHitInTokens(variants.tokens, word);
+    } else {
+      hit = findHitAsSubstring(haystacks, cleaned);
+    }
     if (hit) {
       issues.push({
         layer: 'static',
-        lang: 'es',
+        lang,
         category: 'profanity',
         match: word,
         view: hit,
@@ -69,16 +87,16 @@ export function staticCheck(variants) {
     }
   }
 
-  // ── EN profanity
-  for (const word of englishProfanity) {
-    const exactOnly = englishExactOnly.has(word);
-    const hit = exactOnly
-      ? findHit(tokenViews, word, true)
-      : findHit(haystacks, word.replace(/\s/g, ''), false);
+  // Pase aparte: las palabras de exactOnlySet que NO están en la lista
+  // principal (ej. 'ano', que no metemos en spanishProfanity para evitar
+  // falsos positivos en "Ana", pero sí queremos pillar como token aislado).
+  for (const word of exactOnlySet) {
+    if (list.includes(word)) continue;
+    const hit = findHitInTokens(variants.tokens, word);
     if (hit) {
       issues.push({
         layer: 'static',
-        lang: 'en',
+        lang,
         category: 'profanity',
         match: word,
         view: hit,
@@ -86,54 +104,54 @@ export function staticCheck(variants) {
       });
     }
   }
+}
 
-  // ── FR profanity
-  for (const word of frenchProfanity) {
-    const exactOnly = frenchExactOnly.has(word);
-    const hit = exactOnly
-      ? findHit(tokenViews, word, true)
-      : findHit(haystacks, word.replace(/\s/g, ''), false);
-    if (hit) {
-      issues.push({
-        layer: 'static',
-        lang: 'fr',
-        category: 'profanity',
-        match: word,
-        view: hit,
-        severity: 'high',
-      });
-    }
-  }
+export function staticCheck(variants) {
+  const issues = [];
 
-  // ── Nombres-broma conocidos en ES/EN/FR
-  for (const { form, why, lang } of jokeForms) {
+  // ── Profanity ES/EN/FR ──────────────────────────────────────────────────
+  checkProfanityList(spanishProfanity, spanishExactOnly, 'es', variants, issues);
+  checkProfanityList(englishProfanity, englishExactOnly, 'en', variants, issues);
+  checkProfanityList(frenchProfanity, frenchExactOnly, 'fr', variants, issues);
+
+  // ── Nombres-broma conocidos (con matching fonético en español) ──────────
+  for (const { form, why, lang, phonetic } of jokeForms) {
     const cleaned = form.replace(/\s/g, '');
-    if (
+
+    // Match directo en concat / dedupe
+    const directHit =
       variants.concatNoSpaces.includes(cleaned) ||
-      variants.dedupedConcat.includes(cleaned)
-    ) {
+      variants.dedupedConcat.includes(cleaned);
+
+    // Match fonético (sólo ES, donde aplica b↔v / h muda / ll↔y)
+    const phoneticHit =
+      lang === 'es' &&
+      phonetic &&
+      variants.phoneticEs.includes(phonetic);
+
+    if (directHit || phoneticHit) {
       issues.push({
         layer: 'static',
         lang,
         category: 'joke-name',
         match: form,
         view: variants.concatNoSpaces,
-        reason: why,
+        reason: why + (phoneticHit && !directHit ? ' (match fonético b↔v / h muda)' : ''),
         severity: 'high',
       });
     }
   }
 
-  // ── Contexto Real Madrid: jugadores rivales (nombre+apellido completo) y
-  //    chants antimadridistas. NUNCA bloqueamos apellidos sueltos como
-  //    "Guardiola" o "Iniesta" — sólo combinaciones completas. Eso permite
-  //    que "Ángela Guardiola Guardiola" pase limpia.
-  for (const { form, why, category } of realMadridForms) {
+  // ── Real Madrid: full-name combinations + chants ────────────────────────
+  for (const { form, why, category, phonetic } of realMadridForms) {
     const cleaned = form.replace(/\s/g, '');
-    if (
+    const directHit =
       variants.concatNoSpaces.includes(cleaned) ||
-      variants.dedupedConcat.includes(cleaned)
-    ) {
+      variants.dedupedConcat.includes(cleaned);
+    const phoneticHit =
+      phonetic && variants.phoneticEs.includes(phonetic);
+
+    if (directHit || phoneticHit) {
       issues.push({
         layer: 'static',
         lang: 'es',
@@ -142,6 +160,30 @@ export function staticCheck(variants) {
         view: variants.concatNoSpaces,
         reason: why,
         severity: 'high',
+      });
+    }
+  }
+
+  // ── Apellidos rivales SOLOS — match exact-equals al concat ──────────────
+  // "M E S S I" → concat "messi" → match.
+  // "Carlos Messi García" → concat "carlosmessigarcia" → no match.
+  // Severity high para apellidos foráneos únicos (Messi, Cruyff…) que
+  // bloquean. Severity medium para apellidos comunes (Iniesta, Guardiola…)
+  // que mandan a REVIEW para que un humano confirme.
+  for (const { form, why, severity } of aloneRivalSurnames) {
+    if (
+      variants.concatNoSpaces === form ||
+      variants.dedupedConcat === form ||
+      variants.phoneticEs === form
+    ) {
+      issues.push({
+        layer: 'static',
+        lang: 'es',
+        category: 'rival-surname-alone',
+        match: form,
+        view: variants.concatNoSpaces,
+        reason: why,
+        severity,
       });
     }
   }

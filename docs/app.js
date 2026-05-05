@@ -76,18 +76,18 @@ function refreshAIModeUI() {
   if (mode === 'proxy') {
     aiModePill.classList.add('proxy');
     aiModePill.textContent = '🟢 Proxy activo';
-    aiModeDetail.textContent = 'Capa AI vía proxy backend. La API key vive en el servidor.';
+    aiModeDetail.textContent = 'Capa de IA vía proxy de backend. La clave de API reside en el servidor.';
   } else if (mode === 'direct') {
     aiModePill.classList.add('direct');
-    aiModePill.textContent = '🟡 Browser-direct';
-    aiModeDetail.textContent = 'Capa AI activa, pero la key se envía desde este navegador. Sólo demos.';
+    aiModePill.textContent = '🟡 Llamada directa desde el navegador';
+    aiModeDetail.textContent = 'Capa de IA activa, pero la clave se envía desde este navegador. Sólo para demostraciones.';
   } else {
     aiModePill.classList.add('staticonly');
-    aiModePill.textContent = '⚪ Sólo capas estáticas';
-    aiModeDetail.textContent = 'Configura un backend proxy o una API key para activar la capa semántica.';
+    aiModePill.textContent = '⚪ Sólo listas estáticas';
+    aiModeDetail.textContent = 'Configura un proxy de backend o una clave de API para activar la capa semántica.';
   }
 
-  // Per-section hints
+  // Pistas por sección
   const url = getProxyUrl();
   if (url) {
     proxyStatus.textContent = `✓ Proxy configurado: ${url}`;
@@ -99,7 +99,7 @@ function refreshAIModeUI() {
 
   const k = getStoredKey();
   if (k) {
-    keyStatus.textContent = `✓ Key cargada (sk-ant-…${k.slice(-6)}). Sólo válida en esta pestaña.`;
+    keyStatus.textContent = `✓ Clave cargada (sk-ant-…${k.slice(-6)}). Sólo válida en esta pestaña.`;
     keyStatus.style.color = 'var(--warn)';
   } else {
     keyStatus.textContent = 'Sin clave directa.';
@@ -117,6 +117,7 @@ async function validate() {
 
   button.disabled = true;
   button.textContent = 'Validando…';
+  // (Texto botón ya en castellano)
 
   try {
     const proxyUrl = getProxyUrl() || null;
@@ -164,7 +165,7 @@ function render(data) {
   if (!(data.reasons ?? []).length) {
     const li = document.createElement('li');
     li.className = 'low';
-    li.textContent = 'Sin observaciones — input limpio.';
+    li.textContent = 'Sin observaciones: el nombre está limpio.';
     reasonsList.appendChild(li);
   }
 
@@ -173,10 +174,10 @@ function render(data) {
   metaDeleeted.textContent = data.normalized?.deLeeted ?? '—';
   const ls = data.layer_summary ?? {};
   metaLayers.textContent =
-    `format=${ls.format_issues ?? 0} · ` +
-    `static=${ls.static_issues ?? 0} · ` +
-    `ai=${ls.ai_run ? '✓' : ls.ai_skipped_due_to_static_block ? '⏭ (saltado por hit estático)' : '✗'}` +
-    ` · mode=${activeMode()}`;
+    `formato=${ls.format_issues ?? 0} · ` +
+    `estática=${ls.static_issues ?? 0} · ` +
+    `ia=${ls.ai_run ? '✓' : ls.ai_skipped_due_to_static_block ? '⏭ (omitida por bloqueo estático)' : '✗'}` +
+    ` · modo=${activeMode()}`;
 
   rawJson.textContent = JSON.stringify(data, null, 2);
   result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -232,7 +233,7 @@ saveProxy.addEventListener('click', () => {
   const v = proxyUrlInput.value.trim();
   if (!v) return;
   if (!/^https?:\/\//i.test(v)) {
-    alert('La URL debe empezar por http:// o https://');
+    alert('La URL debe comenzar por http:// o https://');
     return;
   }
   setProxyUrl(v);
@@ -242,20 +243,20 @@ saveProxy.addEventListener('click', () => {
 testProxy.addEventListener('click', async () => {
   const v = proxyUrlInput.value.trim() || getProxyUrl();
   if (!v) {
-    alert('Pega primero una URL.');
+    alert('Introduce primero una URL.');
     return;
   }
   proxyStatus.textContent = '⏳ Probando…';
   proxyStatus.style.color = 'var(--fg-dim)';
-  // El endpoint health vive en el path raíz del proxy, no en /api/ai-check
+  // El endpoint de health vive en la ruta raíz del proxy, no en /api/ai-check
   const healthUrl = v.replace(/\/api\/ai-check\/?$/, '/api/health');
   try {
     const r = await fetch(healthUrl, { method: 'GET' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     proxyStatus.textContent =
-      `✓ Conectado · model=${data.model ?? '?'} · ` +
-      `ai_layer=${data.ai_layer ? '✓' : '✗'}` +
+      `✓ Conectado · modelo=${data.model ?? '?'} · ` +
+      `capa de IA=${data.ai_layer ? '✓' : '✗'}` +
       (data.mode ? ` · ${data.mode}` : '');
     proxyStatus.style.color = 'var(--ok)';
   } catch (err) {
@@ -275,7 +276,7 @@ saveApiKey.addEventListener('click', () => {
   const v = apiKeyInput.value.trim();
   if (!v) return;
   if (!v.startsWith('sk-ant-')) {
-    if (!confirm('La clave no empieza por "sk-ant-". ¿Guardar igualmente?')) return;
+    if (!confirm('La clave no comienza por "sk-ant-". ¿Quieres guardarla de todos modos?')) return;
   }
   setStoredKey(v);
   apiKeyInput.value = '';

@@ -76,7 +76,9 @@ function aggregate({ formatIssues, staticIssues, ai }) {
     }
   }
 
-  // Static
+  // Static — respetamos severity: high bloquea (REJECTED), medium pide
+  // revisión humana (REVIEW). El motor no se salta la AI cuando todo lo que
+  // hay es medium, así que la IA puede vetar un falso positivo.
   for (const i of staticIssues) {
     reasons.push({
       source: `static.${i.lang}.${i.category}`,
@@ -85,8 +87,13 @@ function aggregate({ formatIssues, staticIssues, ai }) {
         ? `Coincide con "${i.match}" — ${i.reason}`
         : `Subcadena prohibida "${i.match}" detectada en "${i.view}"`,
     });
-    verdict = worst(verdict, 'REJECTED');
-    doubt = Math.max(doubt, 100);
+    if (i.severity === 'medium') {
+      verdict = worst(verdict, 'REVIEW');
+      doubt = Math.max(doubt, 60);
+    } else {
+      verdict = worst(verdict, 'REJECTED');
+      doubt = Math.max(doubt, 100);
+    }
   }
 
   // AI
@@ -156,8 +163,10 @@ export async function validateName(
   const variants = buildVariants(rawInput);
   const staticIssues = staticCheck(variants);
 
-  // Si la capa estática ya encontró algo "high", podemos saltarnos la IA
-  // (ahorro de tokens). En cualquier caso, si el operador pide skipAI, idem.
+  // Si la capa estática ya encontró algo HIGH (REJECT seguro), nos
+  // saltamos la IA — ahorro de tokens y latencia. Si sólo hay MEDIUM
+  // (REVIEW dudoso, p.ej. apellido rival común), SÍ llamamos a la IA
+  // para que pueda confirmar/refutar el sospechoso.
   const staticBlocks = staticIssues.some((i) => i.severity === 'high');
   let ai = null;
   if (!skipAI && !staticBlocks) {

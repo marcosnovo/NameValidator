@@ -100,6 +100,55 @@ export const rivalPlayerFullNames = [
   ['floriladrón', 'Floriladrón'],
 ];
 
+// ─── Apellidos de jugador SOLOS ────────────────────────────────────────────
+// Cuando el input es EXACTAMENTE uno de estos apellidos sin nombre propio
+// (concat-normalizado igual al apellido), es casi siempre suplantación.
+//
+// Ojo: dividimos en dos niveles según el riesgo de falso positivo:
+//
+//   uniqueAloneSurnames  → severity:high (REJECTED)
+//     Apellidos foráneos / únicos imposibles en el censo civil español.
+//     "Messi", "Cruyff", "Stoichkov", "Lewandowski"…
+//
+//   commonAloneSurnames  → severity:medium (REVIEW)
+//     Apellidos que SÍ existen como apellidos legítimos en España. Aquí
+//     preferimos enviar a revisión humana antes que bloquear, porque
+//     "Iniesta" o "Guardiola" son apellidos manchegos y catalanes reales.
+//
+// La detección compara `concatNoSpaces` exactamente con el apellido. Si el
+// usuario escribe "Lionel Messi" → concat es `lionelmessi`, no matchea
+// aquí (lo pilla rivalPlayerFullNames). Si escribe sólo "Messi" o
+// "M E S S I" o "MeSsI" → concat es `messi`, matchea.
+export const uniqueAloneSurnames = [
+  ['messi', 'Apellido de jugador rival foráneo (Lionel Messi)'],
+  ['leomessi', 'Variante "Leo Messi"'],
+  ['liomessi', 'Variante "Lio Messi"'],
+  ['cruyff', 'Apellido de jugador rival foráneo (Johan Cruyff)'],
+  ['stoichkov', 'Apellido de jugador rival foráneo (Hristo Stoichkov)'],
+  ['lewandowski', 'Apellido de jugador rival foráneo (Robert Lewandowski)'],
+  ['ronaldinho', 'Apodo de jugador rival foráneo'],
+  ['rivaldo', 'Apodo de jugador rival foráneo'],
+  ['romario', 'Apodo de jugador rival foráneo'],
+  ['kluivert', 'Apellido de jugador rival foráneo (Patrick Kluivert)'],
+  ['rijkaard', 'Apellido de jugador rival foráneo (Frank Rijkaard)'],
+  ['koeman', 'Apellido de jugador rival foráneo (Ronald Koeman)'],
+  ['etoofiles', 'Apellido raro (Samuel Eto\'o)'],
+  ['xaviniestamessi', 'Combo Barça (anti-Madrid)'],
+];
+
+export const commonAloneSurnames = [
+  ['iniesta', 'Posible suplantación de Andrés Iniesta (apellido manchego también)'],
+  ['guardiola', 'Posible suplantación de Pep Guardiola (apellido catalán también)'],
+  ['puyol', 'Posible suplantación de Carles Puyol (apellido catalán también)'],
+  ['pique', 'Posible suplantación de Gerard Piqué (apellido catalán también)'],
+  ['xavi', 'Posible suplantación de Xavi Hernández (también diminutivo de Javier)'],
+  ['busquets', 'Posible suplantación de Sergio Busquets (apellido catalán)'],
+  ['neymar', 'Apodo de Neymar (poco común como nombre civil en España)'],
+  ['simeone', 'Posible suplantación de Diego Simeone (apellido italiano)'],
+  ['cholo', 'Apodo de Diego Simeone (también término coloquial)'],
+  ['griezmann', 'Posible suplantación de Antoine Griezmann'],
+];
+
 // ─── Chants antimadridistas / pro-rivales ──────────────────────────────────
 export const antiMadridChants = [
   ['halabarca', '"Hala Barça"'],

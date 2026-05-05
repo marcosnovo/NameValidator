@@ -46,6 +46,42 @@ function dedupeRuns(s) {
   return s.replace(/(.)\1{2,}/g, '$1$1');
 }
 
+// Normalización fonética castellana: aplica las equivalencias de sonido del
+// español de España para que "devora melo" matchee "deboramelo", "yo me
+// llamo" matchee "yomeyamo", etc. Reglas aplicadas:
+//   - v → b (b/v son homófonos en castellano)
+//   - h → '' EXCEPTO cuando va precedida de c (mantenemos "ch")
+//   - ll → y (yeísmo)
+//   - z → s y c+(e|i) → s (seseo — útil para variantes LatAm; en España
+//     se usa ortografía con z/c, pero algunos nombres-broma juegan con eso)
+//   - ñ → n (defensa contra escapes tipo "ñ" → "n")
+//
+// Esta función se aplica sobre `concatNoSpaces` (todo junto, ya sin
+// acentos ni leet), generando una vista paralela contra la que también
+// buscamos.
+function phoneticEs(s) {
+  if (!s) return '';
+  return s
+    // 1. ll → y (antes de tocar las "l")
+    .replace(/ll/g, 'y')
+    // 2. ch → 'CHX' temporalmente para protegerla del paso 3 que borra h
+    .replace(/ch/g, 'CHX')
+    // 3. quita h muda en cualquier otra posición
+    .replace(/h/g, '')
+    // 4. restaura ch
+    .replace(/CHX/g, 'ch')
+    // 5. v → b
+    .replace(/v/g, 'b')
+    // 6. ce/ci → se/si y z → s (seseo)
+    .replace(/c(?=[ei])/g, 's')
+    .replace(/z/g, 's')
+    // 7. ñ → n
+    .replace(/ñ/g, 'n')
+    // 8. qu+(e|i) → k+(e|i)  (para que "que" matchee "ke"-leet)
+    .replace(/qu(?=[ei])/g, 'k')
+    .replace(/q/g, 'k');
+}
+
 // Genera todas las particiones por espacio y devuelve las re-segmentaciones
 // posibles deslizando el corte. Útil para que el motor de concat no dependa
 // de los espacios elegidos por el usuario.
@@ -62,6 +98,7 @@ function buildVariants(raw) {
   const concatNoSpaces = lettersOnly(deLeeted);
   const dedupedConcat = dedupeRuns(concatNoSpaces);
   const reversedConcat = concatNoSpaces.split('').reverse().join('');
+  const phoneticEsView = phoneticEs(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -75,8 +112,9 @@ function buildVariants(raw) {
     concatNoSpaces,       // todo junto, sólo letras  ←  ★ la vista clave
     dedupedConcat,        // con runs colapsados
     reversedConcat,       // al revés
+    phoneticEs: phoneticEsView, // ★ b↔v, h muda, ll→y, seseo
     tokens,               // ['aitor', 'tilla']
   };
 }
 
-export { buildVariants, stripDiacritics, deLeet, lettersOnly };
+export { buildVariants, stripDiacritics, deLeet, lettersOnly, phoneticEs };
