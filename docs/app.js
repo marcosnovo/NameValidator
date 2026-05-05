@@ -590,6 +590,14 @@ function progressLabel(stage, status) {
     'passport-front': 'Parsing pasaporte',
     'driving-license': 'Parsing carnet de conducir',
     'dni-spain': 'Detectando DNI/NIE',
+    // Camino Claude Vision
+    'ai-vision-probe': 'Comprobando proxy AI',
+    'ai-vision-prepare': 'Preparando imagen para Claude',
+    'ai-vision-encode': 'Codificando imagen',
+    'ai-vision-request': 'Enviando a Claude Vision (3-6s)',
+    'ai-vision-parse': 'Procesando respuesta de Claude',
+    'ai-vision-done': 'Claude Vision completado',
+    'ai-vision-fallback': 'Claude no disponible — usando OCR local',
   }[stage] || stage;
   return status ? `${stageLabel}: ${status}` : stageLabel;
 }
@@ -606,6 +614,7 @@ async function processImage(imageSource) {
   const scanner = new DocumentScanner();
   try {
     const result = await scanner.scan(imageSource.blob, {
+      proxyUrl: getProxyUrl() || null,
       onProgress: ({ stage, status, progress }) => {
         setProgress(progress ?? 0, progressLabel(stage, status));
       },
@@ -624,6 +633,19 @@ async function processImage(imageSource) {
 
 function renderResult(result) {
   showStage('result');
+
+  // ── Indicador de modo (Claude Vision vs OCR local) ─────────────────────
+  const modeBadge = $('#scan-mode-badge');
+  if (modeBadge) {
+    if (result.mode === 'claude-vision') {
+      modeBadge.className = 'mode-badge mode-ai';
+      modeBadge.textContent = `⚡ Claude Vision · ${result.modelUsed ?? 'sonnet-4-6'}`;
+    } else {
+      modeBadge.className = 'mode-badge mode-local';
+      modeBadge.textContent = '🔧 OCR local (Tesseract)';
+    }
+    modeBadge.classList.remove('hidden');
+  }
 
   // ── Calidad de foto (visible al inicio para feedback rápido)
   const qBox = $('#scan-quality');

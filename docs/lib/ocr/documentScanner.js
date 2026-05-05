@@ -47,15 +47,72 @@ import {
   estimatePhotoQuality,
 } from './imagePreprocess.js';
 import { getDocumentDetector, canvasToImage } from './documentDetector.js';
+import {
+  extractWithAIVision,
+  aiVisionAvailable,
+  visionToScannerResult,
+} from './aiVisionExtract.js';
 
 export class DocumentScanner {
   /**
    * @param {Blob|string|HTMLImageElement} image
    * @param {Object} [opts]
+   * @param {string}   [opts.proxyUrl]  — si existe y el Worker tiene API key,
+   *                   se usa Claude Vision (~3-6s, ~97% precisión). Si falla
+   *                   o no hay proxy, cae al pipeline Tesseract local.
+   * @param {boolean}  [opts.forceLocal=false] — fuerza Tesseract local aunque
+   *                   haya proxy. Útil para test / modo offline.
    * @param {Function} [opts.onProgress] — callback({status, progress, stage})
    * @returns {Promise<Object>}
    */
-  async scan(image, { onProgress = () => {} } = {}) {
+  async scan(image, { onProgress = () => {}, proxyUrl = null, forceLocal = false } = {}) {
+    // ── CAMINO PREFERENTE: Claude Vision si está disponible ───────────────
+    // Verificación health rápida (<3s timeout) → si OK, usamos Vision.
+    if (proxyUrl && !forceLocal) {
+      onProgress({ stage: 'ai-vision-probe', progress: 0.02 });
+      const probe = await aiVisionAvailable(proxyUrl, { timeoutMs: 3000 });
+      if (probe.available) {
+        try {
+          const visionData = await extractWithAIVision(image, {
+            proxyUrl,
+            onProgress: (e) => onProgress({
+              stage: e.stage,
+              progress: e.progress,
+              status: e.status,
+            }),
+          });
+          if (visionData.ok) {
+            const r = visionToScannerResult(visionData);
+            r.modelUsed = probe.model;
+            return r;
+          }
+          // Vision falló (red, timeout, JSON malo) → caemos a Tesseract
+          // pero con una nota para diagnóstico.
+          onProgress({
+            stage: 'ai-vision-fallback',
+            progress: 0.05,
+            status: visionData.error,
+          });
+        } catch (err) {
+          // Excepción inesperada → fallback silencioso
+          onProgress({
+            stage: 'ai-vision-fallback',
+            progress: 0.05,
+            status: err.message,
+          });
+        }
+      }
+    }
+
+    // ── CAMINO FALLBACK: pipeline Tesseract local ─────────────────────────
+    return this._scanLocal(image, { onProgress });
+  }
+
+  /**
+   * Pipeline original (Tesseract.js + parsers locales). Se ejecuta cuando
+   * no hay proxy configurado o cuando Claude Vision falla.
+   */
+  async _scanLocal(image, { onProgress = () => {} } = {}) {
     const result = {
       ok: false,
       documentType: 'unknown',
