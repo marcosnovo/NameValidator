@@ -3,316 +3,131 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HALO Name Validator · Santiago Bernabéu</title>
-    <meta name="description" content="Test de nombres aptos para mostrarse en el HALO del Santiago Bernabéu. Detecta lenguaje soez, slurs, nombres-broma y trampas fonéticas en ES/EN/FR." />
+    <title>HALO Name Validator · Bernabéu</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <div class="badge" aria-hidden="true">⬭</div>
-      <h1>HALO Name Validator</h1>
-      <p class="tagline">
-        Comprobador de nombres aptos para mostrarse en el HALO del Santiago
-        Bernabéu. Detecta lenguaje soez, insultos discriminatorios,
-        nombres-broma, trampas fonéticas y suplantación de jugadores
-        rivales en <strong>ES · EN · FR · PT</strong>.
-      </p>
-      <p class="meta-line">
-        Versión <em>GitHub Pages</em>: se ejecuta enteramente en tu
-        navegador. Las listas estáticas (~700 nombres-broma + ~400
-        términos vulgares + jugadores rivales) están siempre activas y
-        son gratis. La capa semántica (Claude Opus 4.7) se activa
-        configurando un <strong>proxy de backend</strong> (recomendado)
-        o pegando tu clave de API directa (sólo para demostraciones).
-      </p>
-    </header>
-
     <main>
-      <section class="panel">
-        <label for="name-input" class="label">Nombre propuesto por el aficionado</label>
-        <div class="field">
+      <header>
+        <h1><span aria-hidden="true">⬭</span> HALO Validator</h1>
+        <p>Comprueba si un nombre es apto para el HALO del Bernabéu.</p>
+      </header>
+
+      <section class="card primary">
+        <div class="input-row">
           <input
             id="name-input"
             type="text"
             maxlength="60"
             autocomplete="off"
             spellcheck="false"
-            placeholder="Ej. Vinicius Jr., Ángela Guardiola Guardiola, Aitor Tilla…"
+            placeholder="Escribe el nombre del aficionado…"
           />
-          <button id="validate-btn" type="button">Validar</button>
+          <button id="validate-btn" type="button" class="cta">Validar</button>
         </div>
-        <div class="row">
-          <label class="check">
-            <input type="checkbox" id="skip-ai" />
-            <span>Omitir la capa de IA (sólo listas estáticas)</span>
-          </label>
-          <button class="link-btn" id="toggle-settings" type="button">⚙ Ajustes de IA</button>
-        </div>
-        <p class="hint">
-          Pulsa <kbd>Intro</kbd> para validar. Prueba variantes sutiles
-          (espacios extra, sustituciones <em>leet</em>, mayúsculas raras,
-          tildes): el sistema las normaliza antes de evaluar.
-        </p>
       </section>
 
-      <section class="panel settings hidden" id="settings-panel">
-        <h3>Capa semántica (Claude Opus 4.7)</h3>
-        <p class="status-line">
-          <span class="status-pill" id="ai-mode-pill">Sólo listas estáticas</span>
-          <span id="ai-mode-detail">La capa de IA está desactivada.</span>
-        </p>
-
-        <h4 class="settings-section">① Proxy de backend <span class="recommend">recomendado</span></h4>
-        <p class="settings-help">
-          Pega aquí la URL del proxy donde reside tu clave de API. Tu
-          Cloudflare Worker (<code>proxy/cloudflare-worker.js</code>) o tu
-          servidor Express (<code>server.js</code>) deben exponer
-          <code>POST /api/ai-check</code> con CORS habilitado. Pasos
-          completos en
-          <a href="https://github.com/marcosnovo/namevalidator/tree/main/proxy" target="_blank" rel="noopener">proxy/README.md</a>.
-          La URL se guarda en <code>localStorage</code> (persiste entre
-          sesiones).
-        </p>
-        <div class="field">
-          <input
-            id="proxy-url-input"
-            type="url"
-            placeholder="https://halo-proxy.workers.dev/api/ai-check"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button id="save-proxy" type="button">Guardar</button>
-          <button id="test-proxy" type="button" class="ghost">Probar</button>
-          <button id="clear-proxy" type="button" class="ghost">Borrar</button>
-        </div>
-        <p class="hint" id="proxy-status">Sin proxy configurado.</p>
-
-        <h4 class="settings-section">② Clave de API directa <span class="caution">sólo demostración</span></h4>
-        <p class="warn">
-          ⚠ <strong>Sólo para pruebas</strong>: si pegas aquí tu clave de
-          API, queda almacenada en <code>sessionStorage</code> y se envía
-          directamente a Anthropic desde este navegador. Cualquier código
-          que se ejecute en esta página podría leerla. <strong>No utilices
-          tu clave de producción</strong>: para producción usa la opción
-          ① con un proxy.
-        </p>
-        <div class="field">
-          <input
-            id="api-key-input"
-            type="password"
-            placeholder="sk-ant-api03-..."
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button id="save-api-key" type="button">Guardar</button>
-          <button id="clear-api-key" type="button" class="ghost">Borrar</button>
-        </div>
-        <p class="hint" id="key-status">Sin clave directa.</p>
-      </section>
-
-      <section class="panel result hidden" id="result">
-        <header class="result-head">
-          <span class="verdict" id="verdict-pill">—</span>
-          <span class="doubt" id="doubt-pill">duda 0%</span>
-          <span class="elapsed" id="elapsed-pill">0 ms</span>
-        </header>
-
-        <div class="meter-wrap" aria-hidden="true">
-          <div class="meter">
-            <div class="meter-fill" id="meter-fill"></div>
-          </div>
-          <div class="meter-scale">
-            <span>0</span><span>30</span><span>70</span><span>100</span>
-          </div>
+      <!-- Resultado -->
+      <section class="card result hidden" id="result">
+        <div class="verdict-row">
+          <span class="verdict-big" id="verdict-big">—</span>
+          <span class="doubt-tag" id="doubt-tag">duda 0%</span>
         </div>
 
-        <div class="grid">
-          <div>
-            <h3>Razones</h3>
-            <ul id="reasons-list" class="reasons"></ul>
-          </div>
-          <div>
-            <h3>Detalle técnico</h3>
-            <dl class="meta">
-              <dt>Input</dt><dd id="meta-input">—</dd>
-              <dt>Concatenado</dt><dd id="meta-concat" class="mono">—</dd>
-              <dt>Sin leet</dt><dd id="meta-deleeted" class="mono">—</dd>
-              <dt>Capas ejecutadas</dt><dd id="meta-layers">—</dd>
-            </dl>
-          </div>
+        <div class="meter">
+          <div class="meter-fill" id="meter-fill"></div>
         </div>
 
-        <details class="raw">
-          <summary>Respuesta JSON completa</summary>
+        <ul class="reasons" id="reasons-list"></ul>
+
+        <!-- Validación humana -->
+        <div class="human-box" id="human-box">
+          <div id="human-info"></div>
+          <button id="approve-btn" type="button" class="approve hidden">
+            👤 Aprobar manualmente
+          </button>
+        </div>
+
+        <details class="advanced">
+          <summary>Detalle técnico</summary>
+          <dl>
+            <dt>Concatenado</dt><dd id="meta-concat" class="mono">—</dd>
+            <dt>Capas ejecutadas</dt><dd id="meta-layers">—</dd>
+          </dl>
           <pre id="raw-json"></pre>
         </details>
       </section>
 
-      <section class="panel examples">
-        <h3>Casos de prueba sugeridos</h3>
-        <p>Pulsa cualquiera para validarlo automáticamente.</p>
+      <!-- Acciones secundarias colapsables -->
+      <details class="card collapsible">
+        <summary>⚙ Ajustes de IA</summary>
+        <div class="section-body">
+          <p class="ai-status">
+            <span class="status-pill" id="ai-mode-pill">⚪ Sólo listas estáticas</span>
+            <span id="ai-mode-detail">La capa de IA está desactivada.</span>
+          </p>
 
-        <h4>✓ Nombres legítimos</h4>
-        <div class="example-grid">
-          <button class="ex ok">Vinicius Jr.</button>
-          <button class="ex ok">Jude Bellingham</button>
-          <button class="ex ok">María Hernández</button>
-          <button class="ex ok">Cristiano Ronaldo</button>
-          <button class="ex ok">Sergio Ramos</button>
-          <button class="ex ok">Iker Casillas</button>
-          <button class="ex ok">Hala Madrid</button>
-          <button class="ex ok">Conchita Martínez</button>
-          <button class="ex ok">Rosalía</button>
-          <button class="ex ok">Léa Seydoux</button>
-          <button class="ex ok">Sophie Marceau</button>
-          <button class="ex ok">Plácido Domingo</button>
-        </div>
+          <h4>Proxy de backend <span class="tag good">recomendado</span></h4>
+          <div class="input-row">
+            <input id="proxy-url-input" type="url" placeholder="https://halo-proxy.workers.dev/api/ai-check" />
+            <button id="save-proxy" type="button">Guardar</button>
+            <button id="test-proxy" type="button" class="ghost">Probar</button>
+            <button id="clear-proxy" type="button" class="ghost">Borrar</button>
+          </div>
+          <p class="hint" id="proxy-status">Sin proxy configurado.</p>
 
-        <h4>⚠ Apellidos rivales legítimos (CRÍTICOS — deben pasar)</h4>
-        <div class="example-grid">
-          <button class="ex ok">Ángela Guardiola Guardiola</button>
-          <button class="ex ok">Marta Iniesta</button>
-          <button class="ex ok">Pedro Piqué López</button>
-          <button class="ex ok">Juan Puyol</button>
-          <button class="ex ok">Carlos Messi García</button>
+          <h4>Clave de API directa <span class="tag warn">sólo demo</span></h4>
+          <div class="input-row">
+            <input id="api-key-input" type="password" placeholder="sk-ant-..." />
+            <button id="save-api-key" type="button">Guardar</button>
+            <button id="clear-api-key" type="button" class="ghost">Borrar</button>
+          </div>
+          <p class="hint" id="key-status">Sin clave directa.</p>
+          <p class="warn-line">
+            La clave queda en <code>sessionStorage</code>. No uses tu clave
+            de producción aquí: monta un proxy (ver
+            <a href="https://github.com/marcosnovo/namevalidator/tree/main/proxy" target="_blank" rel="noopener">proxy/README</a>).
+          </p>
         </div>
+      </details>
 
-        <h4>✗ Jugadores rivales (Barcelona / Atlético)</h4>
-        <div class="example-grid">
-          <button class="ex bad">Pep Guardiola</button>
-          <button class="ex bad">Lionel Messi</button>
-          <button class="ex bad">Andrés Iniesta</button>
-          <button class="ex bad">Carles Puyol</button>
-          <button class="ex bad">Gerard Piqué</button>
-          <button class="ex bad">Diego Costa</button>
-          <button class="ex bad">Cholo Simeone</button>
-          <button class="ex bad">Ronaldinho</button>
-          <button class="ex bad">Visca el Barça</button>
-          <button class="ex bad">Madrid de mierda</button>
-          <button class="ex bad">Florentino Dimisión</button>
+      <details class="card collapsible">
+        <summary>👤 Validador humano</summary>
+        <div class="section-body">
+          <p class="hint">
+            Tu nombre se mostrará junto a las aprobaciones manuales que
+            hagas. Se guarda en este navegador y puedes cambiarlo cuando
+            quieras.
+          </p>
+          <div class="input-row">
+            <input id="reviewer-input" type="text" placeholder="Tu nombre o ID (ej. María Pérez)" />
+            <button id="save-reviewer" type="button">Guardar</button>
+          </div>
+          <p class="hint" id="reviewer-status">Sin validador configurado.</p>
         </div>
+      </details>
 
-        <h4>✗ Nombres-broma ES</h4>
-        <div class="example-grid">
-          <button class="ex bad">Aitor Tilla</button>
-          <button class="ex bad">Susana Oria</button>
-          <button class="ex bad">Elena Nito</button>
-          <button class="ex bad">Mario Neta</button>
-          <button class="ex bad">Lola Mento</button>
-          <button class="ex bad">Helio Cóptero</button>
-          <button class="ex bad">Esteban Quito</button>
-          <button class="ex bad">Casimiro Cuevas</button>
-          <button class="ex bad">Elsa Pato</button>
-          <button class="ex bad">Estela Gartija</button>
-          <button class="ex bad">Mariano Lopepega</button>
-          <button class="ex bad">Pepe Cojonez</button>
+      <details class="card collapsible">
+        <summary>🧪 Casos de prueba</summary>
+        <div class="section-body" id="examples-body">
+          <!-- Inyectado por JS para mantener el HTML compacto -->
         </div>
+      </details>
 
-        <h4>✗ Nombres-broma EN</h4>
-        <div class="example-grid">
-          <button class="ex bad">Mike Hunt</button>
-          <button class="ex bad">Hugh Jass</button>
-          <button class="ex bad">Ben Dover</button>
-          <button class="ex bad">Phil McCavity</button>
-          <button class="ex bad">Wayne Kerr</button>
-          <button class="ex bad">Mike Oxlong</button>
-          <button class="ex bad">Connie Lingus</button>
-          <button class="ex bad">Anita Bath</button>
+      <details class="card collapsible">
+        <summary>📋 Aprobaciones manuales registradas</summary>
+        <div class="section-body" id="approvals-list">
+          <p class="hint">Aún no hay aprobaciones registradas en este navegador.</p>
         </div>
+      </details>
 
-        <h4>✗ Nombres-broma FR</h4>
-        <div class="example-grid">
-          <button class="ex bad">Jean Bon</button>
-          <button class="ex bad">Paul Ochon</button>
-          <button class="ex bad">Sacha Touille</button>
-          <button class="ex bad">Guy Mauve</button>
-          <button class="ex bad">Anne Honyme</button>
-          <button class="ex bad">Anne Culé</button>
-          <button class="ex bad">Nick Tamère</button>
-          <button class="ex bad">Vive le barca</button>
-          <button class="ex bad">Putain de Madrid</button>
-        </div>
-
-        <h4>✗ Nombres-broma / vulgar PT (BR + EU)</h4>
-        <div class="example-grid">
-          <button class="ex bad">Cu Doce</button>
-          <button class="ex bad">Maria Calça-Cu</button>
-          <button class="ex bad">Vai Tomar No Cu</button>
-          <button class="ex bad">Filho da Puta</button>
-          <button class="ex bad">Caralho</button>
-          <button class="ex bad">Eu Sou Puta</button>
-        </div>
-
-        <h4>✗ Trampas castellanas (h muda, b↔v, w→gu, espaciado)</h4>
-        <div class="example-grid">
-          <button class="ex bad">Carlos Gil Hipoyas</button>
-          <button class="ex bad">Mar Higuan Arica</button>
-          <button class="ex bad">Mecago Entumadre</button>
-          <button class="ex bad">Prin Gado</button>
-          <button class="ex bad">Warra</button>
-          <button class="ex bad">Wapo de mierda</button>
-          <button class="ex bad">Nacho Chazo Grande</button>
-          <button class="ex bad">Esther Colero</button>
-        </div>
-
-        <h4>✗ Anti-Madrid: chants pro-Barça</h4>
-        <div class="example-grid">
-          <button class="ex bad">Blaugrana</button>
-          <button class="ex bad">Viva el Barça</button>
-          <button class="ex bad">Visca el Barça</button>
-          <button class="ex bad">Hala Barça</button>
-          <button class="ex bad">Més que un club</button>
-          <button class="ex bad">Catalunya Independent</button>
-        </div>
-
-        <h4>✗ Trampas (leet, espaciado, inversión, fonética)</h4>
-        <div class="example-grid">
-          <button class="ex bad">P u t a</button>
-          <button class="ex bad">F.U.C.K</button>
-          <button class="ex bad">pu7a</button>
-          <button class="ex bad">atup</button>
-          <button class="ex bad">F U C K E R</button>
-          <button class="ex bad">M E S S I</button>
-          <button class="ex bad">ANO</button>
-          <button class="ex bad">devora melo</button>
-        </div>
-
-        <h4>? Apellidos rivales sospechosos (revisión humana)</h4>
-        <div class="example-grid">
-          <button class="ex sus">Iniesta</button>
-          <button class="ex sus">Guardiola</button>
-          <button class="ex sus">Puyol</button>
-          <button class="ex sus">Piqué</button>
-        </div>
-
-        <h4>✗ Apellidos rivales únicos solos</h4>
-        <div class="example-grid">
-          <button class="ex bad">Messi</button>
-          <button class="ex bad">Cruyff</button>
-          <button class="ex bad">Lewandowski</button>
-          <button class="ex bad">Ronaldinho</button>
-        </div>
-
-        <h4>✗ Insultos no soeces / pejorativos</h4>
-        <div class="example-grid">
-          <button class="ex bad">CACA REAL MADRID</button>
-          <button class="ex bad">Figo Cochino</button>
-          <button class="ex bad">Zoila Cerda</button>
-          <button class="ex bad">Idiota Total</button>
-          <button class="ex bad">Imbécil del Año</button>
-        </div>
-      </section>
+      <footer>
+        <small>
+          Multicapa: normalización + listas ES/EN/FR/PT + Madrid + Claude Opus 4.7.
+          <a href="https://github.com/marcosnovo/namevalidator" target="_blank" rel="noopener">Código</a>
+        </small>
+      </footer>
     </main>
-
-    <footer>
-      <small>
-        Sistema multicapa · normalización + listas ES/EN/FR/Madrid +
-        Claude Opus 4.7. Si el sistema tiene dudas, lo marca como
-        <strong>REVISAR</strong> con un porcentaje de duda.
-        <br />
-        <a href="https://github.com/marcosnovo/namevalidator" target="_blank" rel="noopener">Código fuente</a>
-      </small>
-    </footer>
 
     <script type="module" src="./app.js"></script>
   </body>

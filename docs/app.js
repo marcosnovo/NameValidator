@@ -1,68 +1,84 @@
 // HALO Name Validator — frontend para GitHub Pages.
 //
-// 3 modos posibles para la capa AI (de mejor a peor para producción):
-//   ① PROXY     — la URL del proxy backend está configurada en localStorage.
-//                 La key vive en el servidor. Modo recomendado.
-//   ② DIRECT    — sólo hay API key en sessionStorage. El browser llama a
-//                 api.anthropic.com directamente. Sólo para demos.
-//   ③ STATIC    — ni proxy ni key. Sólo capas estáticas (formato + listas
-//                 + concat). Sigue siendo útil: pilla ~80% de los casos.
+// 3 modos para la capa AI:
+//   ① PROXY   — URL backend en localStorage. Key vive en servidor.
+//   ② DIRECT  — clave en sessionStorage (sólo demos).
+//   ③ STATIC  — sólo capas estáticas.
+//
+// + Validación humana: un revisor (cuyo nombre se guarda en localStorage)
+// puede aprobar manualmente cualquier nombre. Las aprobaciones se guardan
+// en localStorage como `humanApprovals[normalizedKey] = { name, approvers[]}`.
 
 import { validateName } from './lib/validator.js';
+import { buildVariants } from './lib/normalize.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-// ── DOM refs ────────────────────────────────────────────────────────────
+// ── DOM ─────────────────────────────────────────────────────────────────
 const input = $('#name-input');
-const button = $('#validate-btn');
-const skipAI = $('#skip-ai');
+const validateBtn = $('#validate-btn');
 const result = $('#result');
-const verdictPill = $('#verdict-pill');
-const doubtPill = $('#doubt-pill');
-const elapsedPill = $('#elapsed-pill');
+const verdictBig = $('#verdict-big');
+const doubtTag = $('#doubt-tag');
 const meterFill = $('#meter-fill');
 const reasonsList = $('#reasons-list');
-const metaInput = $('#meta-input');
+const humanInfo = $('#human-info');
+const approveBtn = $('#approve-btn');
 const metaConcat = $('#meta-concat');
-const metaDeleeted = $('#meta-deleeted');
 const metaLayers = $('#meta-layers');
 const rawJson = $('#raw-json');
 
-const settingsPanel = $('#settings-panel');
-const toggleSettings = $('#toggle-settings');
 const aiModePill = $('#ai-mode-pill');
 const aiModeDetail = $('#ai-mode-detail');
-
-// Proxy
 const proxyUrlInput = $('#proxy-url-input');
-const saveProxy = $('#save-proxy');
-const testProxy = $('#test-proxy');
-const clearProxy = $('#clear-proxy');
+const saveProxyBtn = $('#save-proxy');
+const testProxyBtn = $('#test-proxy');
+const clearProxyBtn = $('#clear-proxy');
 const proxyStatus = $('#proxy-status');
-
-// Direct API key
 const apiKeyInput = $('#api-key-input');
-const saveApiKey = $('#save-api-key');
-const clearApiKey = $('#clear-api-key');
+const saveApiKeyBtn = $('#save-api-key');
+const clearApiKeyBtn = $('#clear-api-key');
 const keyStatus = $('#key-status');
 
+const reviewerInput = $('#reviewer-input');
+const saveReviewerBtn = $('#save-reviewer');
+const reviewerStatus = $('#reviewer-status');
+const examplesBody = $('#examples-body');
+const approvalsList = $('#approvals-list');
+
 // ── Storage helpers ─────────────────────────────────────────────────────
-// Proxy URL → localStorage (persiste entre sesiones; no es secreto).
-// API key   → sessionStorage (se borra al cerrar pestaña; sí es secreto).
 const PROXY_STORE = 'halo-proxy-url';
-const KEY_STORE   = 'halo-anthropic-key';
+const KEY_STORE = 'halo-anthropic-key';
+const REVIEWER_STORE = 'halo-reviewer-name';
+const APPROVALS_STORE = 'halo-human-approvals';
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
 
-const getProxyUrl = () => safe(() => localStorage.getItem(PROXY_STORE) || '', '');
-const setProxyUrl = (v) => safe(() => localStorage.setItem(PROXY_STORE, v));
+const getProxyUrl   = () => safe(() => localStorage.getItem(PROXY_STORE) || '', '');
+const setProxyUrl   = (v) => safe(() => localStorage.setItem(PROXY_STORE, v));
 const clearProxyUrl = () => safe(() => localStorage.removeItem(PROXY_STORE));
 
-const getStoredKey = () => safe(() => sessionStorage.getItem(KEY_STORE) || '', '');
-const setStoredKey = (v) => safe(() => sessionStorage.setItem(KEY_STORE, v));
+const getStoredKey  = () => safe(() => sessionStorage.getItem(KEY_STORE) || '', '');
+const setStoredKey  = (v) => safe(() => sessionStorage.setItem(KEY_STORE, v));
 const clearStoredKey = () => safe(() => sessionStorage.removeItem(KEY_STORE));
 
-// ── Mode detection & UI ─────────────────────────────────────────────────
+const getReviewer = () => safe(() => localStorage.getItem(REVIEWER_STORE) || '', '');
+const setReviewer = (v) => safe(() => localStorage.setItem(REVIEWER_STORE, v));
+
+function getApprovals() {
+  return safe(() => JSON.parse(localStorage.getItem(APPROVALS_STORE) || '{}'), {});
+}
+function setApprovals(obj) {
+  safe(() => localStorage.setItem(APPROVALS_STORE, JSON.stringify(obj)));
+}
+function approvalKeyFor(name) {
+  // Clave normalizada: case-insensitive, sin acentos, sin espacios, sin
+  // puntuación. Así "Aitor Tilla" y "AITOR  TILLA." y "aitortilla" comparten
+  // la misma entrada de aprobación.
+  return buildVariants(name).concatNoSpaces || name.toLowerCase();
+}
+
+// ── Mode UI ─────────────────────────────────────────────────────────────
 function activeMode() {
   if (getProxyUrl()) return 'proxy';
   if (getStoredKey()) return 'direct';
@@ -72,42 +88,39 @@ function activeMode() {
 function refreshAIModeUI() {
   const mode = activeMode();
   aiModePill.classList.remove('proxy', 'direct', 'staticonly');
-
   if (mode === 'proxy') {
     aiModePill.classList.add('proxy');
     aiModePill.textContent = '🟢 Proxy activo';
-    aiModeDetail.textContent = 'Capa de IA vía proxy de backend. La clave de API reside en el servidor.';
+    aiModeDetail.textContent = 'La capa de IA usa el proxy. La clave reside en el servidor.';
   } else if (mode === 'direct') {
     aiModePill.classList.add('direct');
-    aiModePill.textContent = '🟡 Llamada directa desde el navegador';
-    aiModeDetail.textContent = 'Capa de IA activa, pero la clave se envía desde este navegador. Sólo para demostraciones.';
+    aiModePill.textContent = '🟡 Llamada directa';
+    aiModeDetail.textContent = 'IA activa con clave guardada en este navegador. Sólo para demos.';
   } else {
     aiModePill.classList.add('staticonly');
     aiModePill.textContent = '⚪ Sólo listas estáticas';
-    aiModeDetail.textContent = 'Configura un proxy de backend o una clave de API para activar la capa semántica.';
+    aiModeDetail.textContent = 'Sin IA. Configura un proxy o pega una clave para activarla.';
   }
 
-  // Pistas por sección
-  const url = getProxyUrl();
-  if (url) {
-    proxyStatus.textContent = `✓ Proxy configurado: ${url}`;
-    proxyStatus.style.color = 'var(--ok)';
-  } else {
-    proxyStatus.textContent = 'Sin proxy configurado.';
-    proxyStatus.style.color = 'var(--fg-dim)';
-  }
+  proxyStatus.textContent = getProxyUrl()
+    ? `✓ ${getProxyUrl()}`
+    : 'Sin proxy configurado.';
+  proxyStatus.style.color = getProxyUrl() ? 'var(--ok)' : 'var(--fg-dim)';
 
   const k = getStoredKey();
-  if (k) {
-    keyStatus.textContent = `✓ Clave cargada (sk-ant-…${k.slice(-6)}). Sólo válida en esta pestaña.`;
-    keyStatus.style.color = 'var(--warn)';
-  } else {
-    keyStatus.textContent = 'Sin clave directa.';
-    keyStatus.style.color = 'var(--fg-dim)';
-  }
+  keyStatus.textContent = k
+    ? `✓ Clave cargada (…${k.slice(-6)}). Sólo válida en esta pestaña.`
+    : 'Sin clave directa.';
+  keyStatus.style.color = k ? 'var(--warn)' : 'var(--fg-dim)';
+
+  const reviewer = getReviewer();
+  reviewerStatus.textContent = reviewer
+    ? `✓ Validador: ${reviewer}`
+    : 'Sin validador configurado.';
+  reviewerStatus.style.color = reviewer ? 'var(--ok)' : 'var(--fg-dim)';
 }
 
-// ── Validation ──────────────────────────────────────────────────────────
+// ── Validación principal ────────────────────────────────────────────────
 async function validate() {
   const name = input.value.trim();
   if (!name) {
@@ -115,80 +128,76 @@ async function validate() {
     return;
   }
 
-  button.disabled = true;
-  button.textContent = 'Validando…';
-  // (Texto botón ya en castellano)
+  validateBtn.disabled = true;
+  validateBtn.textContent = '…';
 
   try {
     const proxyUrl = getProxyUrl() || null;
     const apiKey = proxyUrl ? null : (getStoredKey() || null);
-    // Precedencia: proxy > direct > static-only
-    const data = await validateName(name, {
-      skipAI: skipAI.checked,
-      proxyUrl,
-      apiKey,
-    });
-    render(data);
+    const data = await validateName(name, { proxyUrl, apiKey });
+    render(name, data);
   } catch (err) {
     renderError(err);
   } finally {
-    button.disabled = false;
-    button.textContent = 'Validar';
+    validateBtn.disabled = false;
+    validateBtn.textContent = 'Validar';
   }
 }
 
-function render(data) {
+function verdictLabel(v) {
+  return v === 'ALLOWED' ? 'PERMITIDO'
+    : v === 'REVIEW' ? 'REVISAR'
+    : v === 'REJECTED' ? 'RECHAZADO'
+    : v ?? '—';
+}
+
+function render(originalName, data) {
   result.classList.remove('hidden');
 
-  verdictPill.className = `verdict ${data.verdict}`;
-  verdictPill.textContent =
-    data.verdict === 'ALLOWED' ? 'PERMITIDO' :
-    data.verdict === 'REVIEW' ? 'REVISAR' :
-    data.verdict === 'REJECTED' ? 'RECHAZADO' :
-    data.verdict ?? '—';
+  const verdict = data.verdict;
+  verdictBig.className = `verdict-big ${verdict}`;
+  verdictBig.textContent = verdictLabel(verdict);
 
   const doubt = Math.max(0, Math.min(100, data.doubt_percent ?? 0));
-  doubtPill.textContent = `duda ${doubt}%`;
-  elapsedPill.textContent = `${data.elapsed_ms ?? 0} ms`;
+  doubtTag.textContent = `duda ${doubt}%`;
   meterFill.style.width = `${doubt}%`;
 
+  // Razones
   reasonsList.innerHTML = '';
-  for (const reason of data.reasons ?? []) {
+  for (const r of data.reasons ?? []) {
     const li = document.createElement('li');
-    li.className = reason.severity ?? 'low';
-    li.innerHTML = `
-      <span class="src">${escapeHtml(reason.source)}</span>
-      ${escapeHtml(reason.message)}
-    `;
+    li.className = r.severity ?? 'low';
+    li.textContent = r.message;
     reasonsList.appendChild(li);
   }
   if (!(data.reasons ?? []).length) {
     const li = document.createElement('li');
     li.className = 'low';
-    li.textContent = 'Sin observaciones: el nombre está limpio.';
+    li.textContent = 'Sin observaciones — el nombre está limpio.';
     reasonsList.appendChild(li);
   }
 
-  metaInput.textContent = data.input ?? '—';
+  // Detalle técnico
   metaConcat.textContent = data.normalized?.concatNoSpaces ?? '—';
-  metaDeleeted.textContent = data.normalized?.deLeeted ?? '—';
   const ls = data.layer_summary ?? {};
   metaLayers.textContent =
     `formato=${ls.format_issues ?? 0} · ` +
     `estática=${ls.static_issues ?? 0} · ` +
-    `ia=${ls.ai_run ? '✓' : ls.ai_skipped_due_to_static_block ? '⏭ (omitida por bloqueo estático)' : '✗'}` +
-    ` · modo=${activeMode()}`;
-
+    `ia=${ls.ai_run ? '✓' : ls.ai_skipped_due_to_static_block ? '⏭' : '✗'} · ` +
+    `modo=${activeMode()}`;
   rawJson.textContent = JSON.stringify(data, null, 2);
+
+  // Validación humana
+  renderHumanBox(originalName, verdict);
+
   result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function renderError(err) {
   result.classList.remove('hidden');
-  verdictPill.className = 'verdict REJECTED';
-  verdictPill.textContent = 'ERROR';
-  doubtPill.textContent = 'duda ?';
-  elapsedPill.textContent = '–';
+  verdictBig.className = 'verdict-big REJECTED';
+  verdictBig.textContent = 'ERROR';
+  doubtTag.textContent = '—';
   meterFill.style.width = '0%';
   reasonsList.innerHTML = '';
   const li = document.createElement('li');
@@ -196,40 +205,201 @@ function renderError(err) {
   li.textContent = err?.message ?? String(err);
   reasonsList.appendChild(li);
   rawJson.textContent = String(err?.stack ?? err);
+  humanInfo.innerHTML = '';
+  approveBtn.classList.add('hidden');
 }
 
+// ── Validación humana ──────────────────────────────────────────────────
+function renderHumanBox(originalName, verdict) {
+  const key = approvalKeyFor(originalName);
+  const approvals = getApprovals();
+  const entry = approvals[key];
+
+  // Mostrar info de aprobaciones previas si existen
+  humanInfo.innerHTML = '';
+  if (entry && entry.approvers?.length) {
+    const last = entry.approvers[entry.approvers.length - 1];
+    const count = entry.approvers.length;
+    const approverNames = [...new Set(entry.approvers.map(a => a.name))].join(', ');
+    const badge = document.createElement('div');
+    badge.className = 'human-badge';
+    badge.innerHTML = `
+      <strong>✅ Aprobado manualmente ${count}× — última: ${escapeHtml(last.name)}</strong>
+      <span class="approvers">por ${escapeHtml(approverNames)}</span>
+    `;
+    humanInfo.appendChild(badge);
+  }
+
+  // Botón de aprobación: visible cuando el sistema NO permite (REVIEW o REJECTED)
+  if (verdict === 'REVIEW' || verdict === 'REJECTED') {
+    approveBtn.classList.remove('hidden');
+    approveBtn.onclick = () => approveManually(originalName);
+  } else {
+    approveBtn.classList.add('hidden');
+  }
+}
+
+function approveManually(name) {
+  let reviewer = getReviewer();
+  if (!reviewer) {
+    reviewer = (prompt('Antes de aprobar, dinos tu nombre o ID (se guardará para próximas aprobaciones):') || '').trim();
+    if (!reviewer) return;
+    setReviewer(reviewer);
+    refreshAIModeUI();
+  }
+  const reason = (prompt('¿Razón de la aprobación? (opcional)') || '').trim();
+  const key = approvalKeyFor(name);
+  const approvals = getApprovals();
+  const entry = approvals[key] || { name, approvers: [] };
+  entry.name = name; // actualiza la grafía a la última usada
+  entry.approvers.push({
+    name: reviewer,
+    timestamp: new Date().toISOString(),
+    reason: reason || null,
+  });
+  approvals[key] = entry;
+  setApprovals(approvals);
+
+  renderHumanBox(name, /* re-render en estado actual */ verdictBig.textContent === 'PERMITIDO' ? 'ALLOWED' : verdictBig.textContent === 'REVISAR' ? 'REVIEW' : 'REJECTED');
+  refreshApprovalsList();
+  // Feedback visual
+  const oldText = approveBtn.textContent;
+  approveBtn.textContent = '✓ Registrada';
+  setTimeout(() => { approveBtn.textContent = oldText; }, 1500);
+}
+
+function refreshApprovalsList() {
+  const approvals = getApprovals();
+  const entries = Object.entries(approvals);
+  approvalsList.innerHTML = '';
+  if (!entries.length) {
+    approvalsList.innerHTML = '<p class="hint">Aún no hay aprobaciones registradas en este navegador.</p>';
+    return;
+  }
+  // Ordena por nº de aprobaciones desc.
+  entries.sort((a, b) => b[1].approvers.length - a[1].approvers.length);
+  for (const [, entry] of entries) {
+    const row = document.createElement('div');
+    row.className = 'approval-row';
+    const last = entry.approvers[entry.approvers.length - 1];
+    const allNames = [...new Set(entry.approvers.map(a => a.name))].join(', ');
+    row.innerHTML = `
+      <strong>${escapeHtml(entry.name)}</strong>
+      <span class="approvers-line">
+        ${entry.approvers.length}× · última: ${escapeHtml(last.name)} (${new Date(last.timestamp).toLocaleString('es-ES')}) · revisores: ${escapeHtml(allNames)}
+      </span>
+    `;
+    approvalsList.appendChild(row);
+  }
+}
+
+// ── Examples (inyectados por JS para que el HTML quede limpio) ──────────
+const EXAMPLES = [
+  {
+    title: 'Nombres legítimos',
+    cls: 'ok',
+    items: [
+      'Vinicius Jr.', 'Jude Bellingham', 'María Hernández', 'Cristiano Ronaldo',
+      'Hala Madrid', 'Ángela Guardiola Guardiola', 'Léa Seydoux', 'Joao Silva',
+    ],
+  },
+  {
+    title: 'Apellidos rivales legítimos (CRÍTICOS — deben pasar)',
+    cls: 'ok',
+    items: [
+      'Marta Iniesta', 'Pedro Piqué López', 'Juan Puyol', 'Carlos Messi García',
+      'María Mearín',
+    ],
+  },
+  {
+    title: 'Trampas castellanas (h muda, b↔v, w→gu)',
+    cls: 'bad',
+    items: [
+      'Carlos Gil Hipoyas', 'Mar Higuan Arica', 'Mecago Entumadre',
+      'Prin Gado', 'Warra', 'Pepo Yadura', 'Esther Colero',
+      'Doli Dadelano', 'Carmen Abo Duro', 'Carme Gustaela Nal',
+      'Eugenio Dela Lampara',
+    ],
+  },
+  {
+    title: 'Trampas de espaciado / leet / inversión',
+    cls: 'bad',
+    items: ['M E S S I', 'F.U.C.K', 'pu7a', 'atup', 'ANO'],
+  },
+  {
+    title: 'Nombres-broma ES',
+    cls: 'bad',
+    items: ['Aitor Tilla', 'Susana Oria', 'Mario Neta', 'Lola Mento', 'Helio Cóptero'],
+  },
+  {
+    title: 'Nombres-broma EN',
+    cls: 'bad',
+    items: ['Mike Hunt', 'Hugh Jass', 'Ben Dover', 'Phil McCavity', 'Phil Mecavity'],
+  },
+  {
+    title: 'Nombres-broma FR',
+    cls: 'bad',
+    items: ['Jean Bon', 'Paul Ochon', 'Sacha Touille', 'Anne Culé', 'Vive le barca'],
+  },
+  {
+    title: 'Vulgar PT (BR + EU)',
+    cls: 'bad',
+    items: ['Cu Doce', 'Maria Calça-Cu', 'Vai Tomar No Cu', 'Filho da Puta'],
+  },
+  {
+    title: 'Apellidos rivales únicos solos',
+    cls: 'bad',
+    items: ['Messi', 'Cruyff', 'Lewandowski', 'Ronaldinho'],
+  },
+  {
+    title: 'Apellidos rivales comunes (revisión humana)',
+    cls: 'sus',
+    items: ['Iniesta', 'Guardiola', 'Puyol', 'Piqué'],
+  },
+  {
+    title: 'Anti-Madrid: chants pro-Barça',
+    cls: 'bad',
+    items: ['Blaugrana', 'Viva el Barça', 'Hala Barça', 'Madrid de mierda'],
+  },
+];
+
+function renderExamples() {
+  examplesBody.innerHTML = '';
+  for (const group of EXAMPLES) {
+    const wrap = document.createElement('div');
+    wrap.className = 'examples-group';
+    const title = document.createElement('h5');
+    title.textContent = group.title;
+    wrap.appendChild(title);
+    const grid = document.createElement('div');
+    grid.className = 'examples-grid';
+    for (const item of group.items) {
+      const btn = document.createElement('button');
+      btn.className = `ex ${group.cls}`;
+      btn.textContent = item;
+      btn.addEventListener('click', () => {
+        input.value = item;
+        validate();
+      });
+      grid.appendChild(btn);
+    }
+    wrap.appendChild(grid);
+    examplesBody.appendChild(wrap);
+  }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
 function escapeHtml(s) {
   return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ── Wiring: validate ────────────────────────────────────────────────────
-button.addEventListener('click', validate);
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') validate();
-});
-document.querySelectorAll('.ex').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    input.value = btn.textContent;
-    validate();
-  });
-});
+// ── Wiring ──────────────────────────────────────────────────────────────
+validateBtn.addEventListener('click', validate);
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter') validate(); });
 
-// ── Wiring: settings panel toggle ───────────────────────────────────────
-toggleSettings.addEventListener('click', () => {
-  settingsPanel.classList.toggle('hidden');
-  if (!settingsPanel.classList.contains('hidden')) {
-    proxyUrlInput.value = getProxyUrl();
-    apiKeyInput.value = getStoredKey();
-  }
-});
-
-// ── Wiring: proxy URL ───────────────────────────────────────────────────
-saveProxy.addEventListener('click', () => {
+saveProxyBtn.addEventListener('click', () => {
   const v = proxyUrlInput.value.trim();
   if (!v) return;
   if (!/^https?:\/\//i.test(v)) {
@@ -239,56 +409,56 @@ saveProxy.addEventListener('click', () => {
   setProxyUrl(v);
   refreshAIModeUI();
 });
-
-testProxy.addEventListener('click', async () => {
+testProxyBtn.addEventListener('click', async () => {
   const v = proxyUrlInput.value.trim() || getProxyUrl();
-  if (!v) {
-    alert('Introduce primero una URL.');
-    return;
-  }
+  if (!v) { alert('Introduce primero una URL.'); return; }
   proxyStatus.textContent = '⏳ Probando…';
   proxyStatus.style.color = 'var(--fg-dim)';
-  // El endpoint de health vive en la ruta raíz del proxy, no en /api/ai-check
   const healthUrl = v.replace(/\/api\/ai-check\/?$/, '/api/health');
   try {
-    const r = await fetch(healthUrl, { method: 'GET' });
+    const r = await fetch(healthUrl);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     proxyStatus.textContent =
-      `✓ Conectado · modelo=${data.model ?? '?'} · ` +
-      `capa de IA=${data.ai_layer ? '✓' : '✗'}` +
-      (data.mode ? ` · ${data.mode}` : '');
+      `✓ Conectado · modelo=${data.model ?? '?'} · IA=${data.ai_layer ? '✓' : '✗'}`;
     proxyStatus.style.color = 'var(--ok)';
   } catch (err) {
     proxyStatus.textContent = `✗ No accesible: ${err?.message ?? err}`;
     proxyStatus.style.color = 'var(--bad)';
   }
 });
-
-clearProxy.addEventListener('click', () => {
+clearProxyBtn.addEventListener('click', () => {
   clearProxyUrl();
   proxyUrlInput.value = '';
   refreshAIModeUI();
 });
 
-// ── Wiring: API key directa ─────────────────────────────────────────────
-saveApiKey.addEventListener('click', () => {
+saveApiKeyBtn.addEventListener('click', () => {
   const v = apiKeyInput.value.trim();
   if (!v) return;
   if (!v.startsWith('sk-ant-')) {
-    if (!confirm('La clave no comienza por "sk-ant-". ¿Quieres guardarla de todos modos?')) return;
+    if (!confirm('La clave no comienza por "sk-ant-". ¿Guardar de todos modos?')) return;
   }
   setStoredKey(v);
   apiKeyInput.value = '';
   refreshAIModeUI();
 });
-
-clearApiKey.addEventListener('click', () => {
+clearApiKeyBtn.addEventListener('click', () => {
   clearStoredKey();
   apiKeyInput.value = '';
   refreshAIModeUI();
 });
 
+saveReviewerBtn.addEventListener('click', () => {
+  const v = reviewerInput.value.trim();
+  if (!v) return;
+  setReviewer(v);
+  reviewerInput.value = '';
+  refreshAIModeUI();
+});
+
 // ── Boot ────────────────────────────────────────────────────────────────
 refreshAIModeUI();
+renderExamples();
+refreshApprovalsList();
 input.focus();

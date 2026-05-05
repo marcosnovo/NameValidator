@@ -12,6 +12,19 @@ export const spanishProfanity = [
   'puta', 'puto', 'putada', 'putita', 'putito', 'putear', 'putamadre',
   'polla', 'pollas', 'pollon', 'pollona', 'polludo',
   'verga', 'vergas', 'pene', 'penes',
+  // Apodos sexuales para penes (slang castellano)
+  'nabo', 'nabos', 'naboduro', 'naboerecto', 'naboso', 'nabazo',
+  'cipote', 'cipotes', 'cipoton',
+  'rabo', 'rabos', 'minga', 'mingas', 'pichula', 'pichulas',
+  'pirula', 'pirulas',
+  'penudo', 'penacho',
+  'churro sexual', 'pinga', 'pingas',
+  'chorra', 'chorras',
+  // Acto de orinar — 'mear' va sólo como token (chocaba con apellido
+  // gallego "Mearín"). Las frases completas (mearfuerte, gustamear, etc.)
+  // se tratan en spanishJokeNames porque allí sí queremos substring match.
+  'mearse', 'meada', 'meado', 'meando', 'meadas',
+  'meo', 'meos',
   'coño', 'cono', 'conyo', 'conazo',
   'chocho', 'chochete', 'chochito', 'chochazo', 'chochaza', 'chochote',
   // 'concha'/'conchita' son nombres legítimos (Concepción), bloqueamos sólo
@@ -409,6 +422,52 @@ export const spanishJokeNames = [
   // ── Serie "Salvador / Sal va- + algo"
   ['salvadorcena', 'Salvador Cena → "salva la cena / sal va dorcena"'],
 
+  // ── "Dolor de X" / "Dolida X" disfrazado
+  ['dolordelano', 'Dolor del Ano (vulgar)'],
+  ['dolidadelano', 'Doli Dadelano → "dolida del ano" (vulgar)'],
+  ['dolordelpene', 'Dolor del Pene (vulgar)'],
+  ['dolordelnabo', 'Dolor del Nabo (vulgar)'],
+
+  // ── "Gusta + el/la X anatómico" (Carmen Gustaela Nal, etc.)
+  ['gustaelanal', 'Gusta el Anal (vulgar)'],
+  ['gustaeloanal', 'Gusta El Anal (vulgar)'],
+  ['gustaelano', 'Gusta el Ano (vulgar)'],
+  ['gustaelculo', 'Gusta el Culo (vulgar)'],
+  ['gustalapolla', 'Gusta la Polla (vulgar)'],
+  ['gustaeloesculo', 'Gusta el Culo (variante)'],
+  ['gustaelnabo', 'Gusta el Nabo (vulgar)'],
+
+  // ── "Gusta mear" / "Gustarme ar" — patrón vulgar disfrazado.
+  // Incluye variantes con clítico ("gustarme" en lugar de "me gusta").
+  ['gustamearfuerte', 'Gusta Mear Fuerte (vulgar)'],
+  ['gustamear', 'Gusta Mear (vulgar)'],
+  ['gustamearrapido', 'Gusta Mear Rápido (vulgar)'],
+  ['gustarmear', 'Gustarme ar / "gustar mear" (vulgar)'],
+  ['gustarmearfuerte', 'Gustarme Arfuerte → "gustar mear fuerte" (vulgar)'],
+  ['mearfuerte', 'Mear Fuerte (vulgar)'],
+  ['mearrapido', 'Mear Rápido (vulgar)'],
+
+  // ── "Carmen + abo/anal/X" — formaciones recurrentes
+  ['carmenaboduro', 'Carmen, nabo duro (vulgar)'],
+  ['carmenabo', 'Carmen Abo → "carmen nabo"'],
+  ['carmenelanal', 'Carmen el anal (vulgar)'],
+  ['carmegustamearfuerte', 'Carme gustarme arfuerte → "me gusta mear fuerte"'],
+  ['carmegustaelanal', 'Carme gustaela nal → "gusta el anal"'],
+
+  // ── Personajes ficticios en clave sexual / inapropiada
+  ['eugeniodelalampara', 'Eugenio De La Lámpara → "frotar la lámpara" (eufemismo sexual)'],
+  ['frotarlalampara', 'Frotar la Lámpara (eufemismo masturbación)'],
+  ['masturbacionlampara', 'Masturbación con la lámpara'],
+  ['geniodelalampara', 'Genio de la Lámpara — referencia ficticia'],
+
+  // ── "Tu padre es X" (chants vulgares disfrazados)
+  ['tupadreesamunike', 'Tu padre es Amunike (chant vulgar)'],
+  ['tupadreseumunike', 'Tu padre se eumunike (variante)'],
+  ['tumadreesputa', 'Tu madre es puta (insulto)'],
+  ['tumadrelachupa', 'Tu madre la chupa (insulto)'],
+  ['tupadreesgay', 'Tu padre es gay (insulto)'],
+  ['tupadreesmaricon', 'Tu padre es maricón (insulto)'],
+
   // ── Serie "Octavio / Octa- + algo"
   ['octavioterciado', 'Octavio Terciado → "octavo terciado / octavio terciado"'],
 
@@ -634,5 +693,5 @@ export const spanishJokeNames = [
 // Palabras donde sólo se acepta match exacto (no como subcadena), porque son
 // muy cortas o forman parte legítima de muchos apellidos comunes.
 export const spanishExactOnly = new Set([
-  'ano', 'culo', 'teta', 'tetas', 'meo', 'cago',
+  'ano', 'culo', 'teta', 'tetas', 'meo', 'cago', 'mear',
 ]);
