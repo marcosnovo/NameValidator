@@ -652,6 +652,27 @@ footer a:hover { text-decoration: underline; }
 }
 
 /* ── Caja de calidad de foto ───────────────────────────────────────── */
+.mode-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-strong);
+}
+.mode-badge.mode-ai {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.20), rgba(168, 85, 247, 0.20));
+  border-color: rgba(168, 85, 247, 0.50);
+  color: #c4b5fd;
+}
+.mode-badge.mode-local {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.40);
+  color: var(--fg-dim);
+}
+
 .quality-box {
   padding: 10px 12px;
   border-radius: 8px;

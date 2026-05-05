@@ -90,6 +90,12 @@ export const scunthorpeWhitelist = [
   'antilope', 'antilopes',
   'lopear',
   'culebro', 'culebrera',
+  // Escobar — apellido extremadamente común en España y Latinoamérica
+  // (>40.000 personas en España, INE). Reverso "rabocse" contiene "rabo"
+  // como artefacto Scunthorpe; lo perforamos.
+  'escobar', 'escobedo', 'escobio',
+  'pizarro', 'pizarra', 'pizarras', // Pizarro común también
+  'ramirez', 'ramos', 'ramirezgomez',
 
   // ── Castellano: palabras que contienen subcadenas potencialmente
   //    problemáticas pero son legítimas

@@ -24,7 +24,12 @@ import {
   commonAloneSurnames,
 } from '../blocklists/realMadrid.js';
 import { playerNameTokens, contextSensitiveSlurs } from '../blocklists/sensitiveContexts.js';
-import { applyScunthorpeWhitelist } from '../blocklists/scunthorpeWhitelist.js';
+import { applyScunthorpeWhitelist, scunthorpeWhitelist } from '../blocklists/scunthorpeWhitelist.js';
+import {
+  historicalFiguresAcEntries,
+  historicalFigureTokens,
+  HISTORICAL_RARE_SURNAMES,
+} from '../blocklists/historicalFigures.js';
 import { phoneticEs, phoneticEn, phoneticFr, phoneticPt } from '../normalize.js';
 import { buildAhoCorasick } from '../lib/ahoCorasick.js';
 import { fuzzyContains } from '../lib/fuzzyMatch.js';
@@ -124,6 +129,23 @@ const acRealMadridPhonetic = buildAhoCorasick(
   ])
 );
 
+// AC para figuras históricas polémicas (dictadores, conquistadores…).
+// IMPORTANTE: estas coincidencias NO bloquean. Sólo bajan la confianza y
+// marcan REVIEW HUMANO con el motivo concreto. Se buscan SÓLO contra
+// nombre+apellido completo concatenado, nunca apellido-solo, para no
+// falsear personas con apellidos comunes (Franco, Stalin como apellido raro
+// pero existente, etc.). El operador del Tour decide con DNI.
+const acHistorical = buildAhoCorasick(historicalFiguresAcEntries());
+const acHistoricalPhonetic = buildAhoCorasick(
+  historicalFiguresAcEntries().map(([form, meta]) => [phoneticEs(form), meta])
+);
+// Tokens individuales (Hitler, Stalin, Putin, Goebbels…) que también
+// aparecen en blocklists de profanidad/extremismo. Cuando un match de
+// profanidad coincide con uno de éstos Y el detector histórico también
+// dispara, demotamos high → medium para que la decisión sea REVIEW
+// humana con explicación, no REJECT silencioso.
+const HISTORICAL_TOKENS = historicalFigureTokens();
+
 // Profanity precomputed para fuzzy matching (palabras "core" >= 5 chars,
 // vulgaridades inequívocas — no joke names, no real madrid)
 const fuzzyTargetsES = [...spanishProfanity, ...spanishExternal]
@@ -135,6 +157,36 @@ const aloneRivalSurnames = [
   ...uniqueAloneSurnames.map(([form, why]) => ({ form, why, severity: 'high' })),
   ...commonAloneSurnames.map(([form, why]) => ({ form, why, severity: 'medium' })),
 ];
+
+// Pre-computa las palabras Scunthorpe REVERTIDAS para perforar el view
+// `reversedConcat`. Sólo se construye una vez al cargar el módulo.
+const REVERSED_SCUNTHORPE = scunthorpeWhitelist
+  .map((w) => w
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .split('')
+    .reverse()
+    .join(''))
+  .filter(Boolean);
+
+/**
+ * Aplica la whitelist Scunthorpe sobre la vista `reversedConcat`, usando
+ * las palabras invertidas. Caso típico: "escobar" reverso = "rabocse" →
+ * perfora "rabo" que aparece ahí únicamente como artefacto de la
+ * inversión, no como insulto real.
+ */
+function applyScunthorpeWhitelistOnReversed(reversedView) {
+  if (!reversedView) return reversedView;
+  let out = reversedView;
+  for (const w of REVERSED_SCUNTHORPE) {
+    if (!w || !out.includes(w)) continue;
+    const placeholder = '\x02'.repeat(w.length);
+    out = out.split(w).join(placeholder);
+  }
+  return out;
+}
 
 function findHitInTokens(tokens, needle) {
   for (const t of tokens) if (t === needle) return t;
@@ -188,7 +240,15 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
   let foundInRaw = false;
   for (const view of rawHaystacks) {
     if (!view) continue;
-    const punched = applyScunthorpeWhitelist(view);
+    // Para `reversedConcat` aplicamos la Scunthorpe whitelist también
+    // sobre las versiones REVERTIDAS de cada palabra (e.g. "escobar"
+    // reverso = "rabocse" → perfora "rabo" que ahí es ruido). Esto
+    // arregla un falso positivo común en apellidos hispanos como
+    // "Escobar", "Cobarde", etc.
+    const punched =
+      view === variants.reversedConcat
+        ? applyScunthorpeWhitelistOnReversed(view)
+        : applyScunthorpeWhitelist(view);
     const m = ac.firstMatch(punched);
     if (m) {
       issues.push({
@@ -313,7 +373,110 @@ export function staticCheck(variants) {
   // donde la combinación es ofensiva aunque cada palabra suelta sea ambigua.
   detectPlayerInsultContext(variants, issues);
 
+  // ── Figuras históricas polémicas (dictadores, genocidas, conquistadores) ──
+  // NO bloquean. Sólo emiten severity:medium → REVIEW HUMANO con el motivo
+  // concreto. Buscamos contra concat completo (nombre+apellido) y fonético
+  // ES, nunca contra tokens sueltos (apellidos comunes como Franco se
+  // gestionan con el operador y DNI).
+  const historicalHit = detectHistoricalFigures(variants, issues);
+
+  // Si disparó la capa histórica, demotamos cualquier match high de
+  // profanidad/extremismo que sea ruido Scunthorpe causado por el nombre
+  // histórico. Tres casos:
+  //   ▸ "hitler" exacto en lista de extremismo → demote (es la figura)
+  //   ▸ "shit" contenida en token "hitler" → demote (junction Scunthorpe)
+  //   ▸ "rabo" hallado en `reversedConcat` ("escobar"→"rabocse") → demote
+  //     (el match de inversión es backup para "atup→puta"; cuando el nombre
+  //     ya coincide con figura histórica real, el match invertido es ruido)
+  // Resultado: REVIEW humana con explicación clara, no REJECT silencioso.
+  if (historicalHit) {
+    for (const issue of issues) {
+      if (
+        issue.severity === 'high' &&
+        (issue.category === 'profanity' || issue.category === 'extremism') &&
+        typeof issue.match === 'string'
+      ) {
+        const m = issue.match.toLowerCase();
+        const matchesHistorical =
+          HISTORICAL_TOKENS.has(m) ||
+          // El match de profanidad está contenido dentro de algún token
+          // histórico ya flageado (ej. "shit" ⊂ "hitler").
+          [...HISTORICAL_TOKENS].some((tok) => tok.length >= m.length + 1 && tok.includes(m));
+        const isReversedView = issue.view && issue.view === variants.reversedConcat;
+        if (matchesHistorical || isReversedView) {
+          issue.severity = 'medium';
+          issue.demotedBy = 'historical-controversial';
+          issue.originalSeverity = 'high';
+          if (isReversedView) issue.demoteReason = 'reversed-view-noise';
+        }
+      }
+    }
+  }
+
   return issues;
+}
+
+/**
+ * Detecta coincidencias con figuras históricas polémicas. NO bloquea
+ * (severity:medium → REVIEW). Sólo aplica al match completo nombre+apellido,
+ * nunca a apellido suelto, para no falsear personas legítimas.
+ *
+ * Ejemplos:
+ *   ▸ "Adolf Hitler"          → REVIEW, motivo dictador alemán
+ *   ▸ "Francisco Franco García" (un fan español real) → REVIEW, motivo
+ *     dictador español. Operador confirma con DNI y aprueba.
+ *   ▸ "María Franco"          → NO matchea (no hay full-name coincidente)
+ *   ▸ "Cortés López"          → NO matchea (no hay 'Hernán' delante)
+ */
+function detectHistoricalFigures(variants, issues) {
+  // 1) Match directo sobre concat sin espacios (cubre "AdolfoHitler",
+  //    "Francisco Franco" → "franciscofranco", "Stalin Iósif" invertido).
+  let m = acHistorical.firstMatch(variants.concatNoSpaces);
+  if (!m) m = acHistorical.firstMatch(variants.dedupedConcat);
+  // 2) Match fonético ES (cubre "Pancisko Franko", "Polpot", etc.)
+  if (!m) m = acHistoricalPhonetic.firstMatch(variants.phoneticEs);
+
+  if (m) {
+    const reason =
+      `figura histórica polémica` +
+      (m.meta.era ? ` (${m.meta.era})` : '') +
+      `. ${m.meta.why} Si es persona real, comprueba DNI y aprueba manualmente.`;
+    issues.push({
+      layer: 'static',
+      lang: 'es',
+      category: 'historical-controversial',
+      match: m.meta.canonical || m.pattern,
+      view: variants.concatNoSpaces,
+      reason,
+      severity: 'medium', // REVIEW, no REJECT — siempre humano decide
+    });
+    return true;
+  }
+
+  // 3) Apellidos POLÉMICOS RAROS sueltos (Hitler, Goebbels, Mengele…). No
+  //    incluyen apellidos comunes (Franco, Castro, Cortés). Si aparecen
+  //    como token aislado, emitimos REVIEW para que el operador confirme
+  //    con DNI. Si es persona real con ese apellido (extremadamente raro
+  //    pero existente), se aprueba manualmente.
+  const tokens = variants.tokens || [];
+  for (const t of tokens) {
+    const tNorm = t.toLowerCase();
+    if (HISTORICAL_RARE_SURNAMES.has(tNorm)) {
+      const why = HISTORICAL_RARE_SURNAMES.get(tNorm);
+      issues.push({
+        layer: 'static',
+        lang: 'es',
+        category: 'historical-controversial-surname',
+        match: t,
+        view: variants.concatNoSpaces,
+        reason: `apellido coincidente con figura histórica polémica. ${why} Apellido extremadamente raro como nombre civil; comprueba con DNI antes de aprobar.`,
+        severity: 'medium',
+      });
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function detectPlayerInsultContext(variants, issues) {
