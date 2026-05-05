@@ -257,6 +257,221 @@ export const historicalFigures = [
     why: 'Miembro de ETA con condenas por asesinato; nombre asociado a apología del terrorismo.',
   },
 
+  // ─── Asesinos en serie ─────────────────────────────────────────────────
+  {
+    names: ['Ted Bundy', 'Theodore Bundy', 'Theodore Robert Bundy'],
+    era: '1974-1978',
+    why: 'Ted Bundy — asesino en serie estadounidense, 30+ víctimas confirmadas.',
+  },
+  {
+    names: ['Jeffrey Dahmer', 'Jeff Dahmer'],
+    era: '1978-1991',
+    why: 'Jeffrey Dahmer — asesino en serie y caníbal estadounidense ("Carnicero de Milwaukee").',
+  },
+  {
+    names: ['John Wayne Gacy'],
+    era: '1972-1978',
+    why: 'John Wayne Gacy — asesino en serie estadounidense ("Killer Clown"), 33 víctimas.',
+  },
+  {
+    names: ['Charles Manson', 'Charlie Manson'],
+    era: '1969',
+    why: 'Charles Manson — líder de la "Familia Manson", responsable de los crímenes de Cielo Drive.',
+  },
+  {
+    names: ['Richard Ramirez'],
+    era: '1984-1985',
+    why: 'Richard Ramírez — "Night Stalker"; asesino en serie satánico estadounidense.',
+  },
+  {
+    names: ['Aileen Wuornos'],
+    era: '1989-1990',
+    why: 'Aileen Wuornos — asesina en serie estadounidense ejecutada en 2002.',
+  },
+  {
+    names: ['Andrei Chikatilo'],
+    era: '1978-1990',
+    why: 'Andrei Chikatilo — "Carnicero de Rostov", 50+ víctimas en la URSS.',
+  },
+  {
+    names: ['Pedro Alonso López', 'Pedro Lopez'],
+    era: '1969-1980',
+    why: 'Pedro Alonso López — "Monstruo de los Andes", 100+ víctimas en Colombia, Ecuador, Perú.',
+  },
+  {
+    names: ['Luis Garavito', 'Luis Alfredo Garavito'],
+    era: '1992-1999',
+    why: 'Luis Garavito — "La Bestia", uno de los asesinos en serie más prolíficos de la historia.',
+  },
+  {
+    names: ['Dennis Rader', 'BTK Killer'],
+    era: '1974-1991',
+    why: 'Dennis Rader — asesino "BTK" (Bind, Torture, Kill).',
+  },
+  {
+    names: ['Peter Sutcliffe'],
+    era: '1975-1980',
+    why: 'Peter Sutcliffe — "Yorkshire Ripper", 13 mujeres asesinadas en Reino Unido.',
+  },
+  {
+    names: ['Albert Fish'],
+    era: '1924-1932',
+    why: 'Albert Fish — asesino en serie estadounidense conocido por canibalismo.',
+  },
+  {
+    names: ['Ed Gein', 'Edward Gein'],
+    era: '1954-1957',
+    why: 'Ed Gein — "Carnicero de Plainfield", inspiración para Psicosis y La matanza de Texas.',
+  },
+  {
+    names: ['Manuel Delgado Villegas', 'El Arropiero'],
+    era: '1964-1971',
+    why: 'Manuel Delgado Villegas — "El Arropiero", asesino en serie español.',
+  },
+  {
+    names: ['José Antonio Rodríguez Vega'],
+    era: '1987-1988',
+    why: 'José Antonio Rodríguez Vega — "El Mataviejas", asesino en serie español.',
+  },
+  {
+    names: ['Joaquín Ferrándiz', 'Joaquín Ferrándiz Ventura'],
+    era: '1995-1996',
+    why: 'Joaquín Ferrándiz — asesino en serie español de la zona de Castellón.',
+  },
+  {
+    names: ['Alfredo Galán', 'Asesino de la Baraja'],
+    era: '2003',
+    why: 'Alfredo Galán — "Asesino de la Baraja", militar español condenado por 6 asesinatos.',
+  },
+  {
+    names: ['Tony King', 'Tony Alexander King'],
+    era: '2003',
+    why: 'Tony Alexander King — asesino en serie británico activo en la Costa del Sol.',
+  },
+
+  // ─── Tiradores de masas ────────────────────────────────────────────────
+  {
+    names: ['Adam Lanza'],
+    era: '2012',
+    why: 'Adam Lanza — autor de la masacre de Sandy Hook (Newtown, EE. UU.).',
+  },
+  {
+    names: ['Eric Harris'],
+    era: '1999',
+    why: 'Eric Harris — coautor de la masacre del Instituto Columbine.',
+  },
+  {
+    names: ['Dylan Klebold'],
+    era: '1999',
+    why: 'Dylan Klebold — coautor de la masacre del Instituto Columbine.',
+  },
+  {
+    names: ['Stephen Paddock'],
+    era: '2017',
+    why: 'Stephen Paddock — autor del tiroteo masivo de Las Vegas (60 muertos, 411 heridos).',
+  },
+  {
+    names: ['Brenton Tarrant'],
+    era: '2019',
+    why: 'Brenton Tarrant — autor de la masacre de Christchurch (Nueva Zelanda).',
+  },
+  {
+    names: ['Patrick Crusius'],
+    era: '2019',
+    why: 'Patrick Crusius — autor del tiroteo masivo de El Paso (Texas).',
+  },
+  {
+    names: ['Salvador Ramos'],
+    era: '2022',
+    why: 'Salvador Ramos — autor de la masacre escolar de Uvalde (Texas).',
+  },
+  {
+    names: ['Anders Breivik', 'Anders Behring Breivik'],
+    era: '2011',
+    why: 'Anders Breivik — autor del atentado y matanza de Utøya (Noruega), 77 muertos.',
+  },
+
+  // ─── Otros terroristas / criminales notorios ───────────────────────────
+  {
+    names: ['Timothy McVeigh'],
+    era: '1995',
+    why: 'Timothy McVeigh — autor del atentado de Oklahoma City (168 muertos).',
+  },
+  {
+    names: ['Theodore Kaczynski', 'Ted Kaczynski', 'Unabomber'],
+    era: '1978-1995',
+    why: 'Theodore Kaczynski — "Unabomber", terrorista estadounidense.',
+  },
+  {
+    names: ['Charles Whitman'],
+    era: '1966',
+    why: 'Charles Whitman — autor de la masacre de la Universidad de Texas.',
+  },
+  {
+    names: ['Marc Dutroux'],
+    era: '1995-1996',
+    why: 'Marc Dutroux — pedófilo y asesino belga.',
+  },
+
+  // ─── Narcotraficantes notorios ─────────────────────────────────────────
+  {
+    names: ['Pablo Escobar'],
+    era: '1976-1993',
+    why: 'Pablo Escobar — narcotraficante colombiano del Cártel de Medellín.',
+  },
+  {
+    names: ['El Chapo', 'Joaquín Guzmán', 'Joaquin Guzman', 'Joaquín El Chapo Guzmán'],
+    era: '1980s-2017',
+    why: 'Joaquín "El Chapo" Guzmán — narcotraficante mexicano del Cártel de Sinaloa.',
+  },
+  {
+    names: ['Amado Carrillo Fuentes'],
+    era: '1980s-1997',
+    why: 'Amado Carrillo Fuentes — "Señor de los Cielos", narcotraficante mexicano.',
+  },
+  {
+    names: ['Al Capone', 'Alphonse Capone'],
+    era: '1925-1931',
+    why: 'Al Capone — gánster estadounidense del Chicago de la Ley Seca.',
+  },
+  {
+    names: ['John Gotti'],
+    era: '1985-1992',
+    why: 'John Gotti — jefe de la familia Gambino (Cosa Nostra).',
+  },
+  {
+    names: ['Toto Riina', 'Salvatore Riina'],
+    era: '1969-1993',
+    why: 'Salvatore "Totò" Riina — jefe de la mafia siciliana, ordenó los asesinatos de Falcone y Borsellino.',
+  },
+
+  // ─── Abusadores y depredadores famosos ─────────────────────────────────
+  {
+    names: ['Jeffrey Epstein'],
+    era: '2002-2019',
+    why: 'Jeffrey Epstein — financiero condenado por explotación sexual de menores.',
+  },
+  {
+    names: ['Jimmy Savile'],
+    era: '1960s-2010s',
+    why: 'Jimmy Savile — locutor de la BBC, abusador sexual sistemático destapado tras su muerte.',
+  },
+  {
+    names: ['Larry Nassar', 'Lawrence Nassar'],
+    era: '1990s-2017',
+    why: 'Larry Nassar — médico de USA Gymnastics condenado por abuso sexual de cientos de gimnastas.',
+  },
+  {
+    names: ['Harvey Weinstein'],
+    era: '1980s-2017',
+    why: 'Harvey Weinstein — productor de Hollywood condenado por agresiones sexuales (caso #MeToo).',
+  },
+  {
+    names: ['R. Kelly', 'Robert Kelly'],
+    era: '1990s-2019',
+    why: 'R. Kelly — cantante condenado por delitos sexuales y tráfico de personas.',
+  },
+
   // ─── Líderes contemporáneos extremadamente polarizantes ───────────────
   {
     names: ['Donald Trump'],
@@ -375,6 +590,7 @@ export function historicalFigureTokens() {
  * Cada entrada: surname (lowercase, sin acentos) → motivo.
  */
 export const HISTORICAL_RARE_SURNAMES = new Map([
+  // ── Régimen nazi
   ['hitler',    'apellido del dictador alemán Adolf Hitler — excepcionalmente raro como apellido civil.'],
   ['goebbels',  'apellido del ministro de propaganda nazi Joseph Goebbels.'],
   ['goering',   'apellido del jerarca nazi Hermann Göring.'],
@@ -383,21 +599,54 @@ export const HISTORICAL_RARE_SURNAMES = new Map([
   ['mengele',   'apellido del médico nazi Josef Mengele.'],
   ['eichmann',  'apellido del organizador del Holocausto Adolf Eichmann.'],
   ['heydrich',  'apellido del jerarca nazi Reinhard Heydrich.'],
+  // ── Dictadores
   ['mussolini', 'apellido del dictador fascista italiano Benito Mussolini.'],
   ['gadafi',    'apellido del dictador libio Muammar Gadafi.'],
   ['gaddafi',   'apellido del dictador libio Muammar Gadafi.'],
   ['gadhafi',   'apellido del dictador libio Muammar Gadafi.'],
-  ['baghdadi',  'apellido del líder del ISIS Abu Bakr al-Baghdadi.'],
-  ['breivik',   'apellido del terrorista noruego Anders Breivik.'],
   ['ceausescu', 'apellido del dictador rumano Nicolae Ceaușescu.'],
   ['ceaușescu', 'apellido del dictador rumano Nicolae Ceaușescu.'],
+  ['pinochet',  'apellido del dictador chileno Augusto Pinochet.'],
+  ['videla',    'apellido del dictador argentino Jorge Rafael Videla.'],
+  ['verwoerd',  'apellido del arquitecto del apartheid Hendrik Verwoerd.'],
+  // ── Crímenes de guerra
   ['milosevic', 'apellido del condenado por crímenes de guerra Slobodan Milošević.'],
   ['milošević', 'apellido del condenado por crímenes de guerra Slobodan Milošević.'],
   ['karadzic',  'apellido del condenado por genocidio Radovan Karadžić.'],
   ['karadžić',  'apellido del condenado por genocidio Radovan Karadžić.'],
   ['mladic',    'apellido del condenado por genocidio Ratko Mladić.'],
   ['mladić',    'apellido del condenado por genocidio Ratko Mladić.'],
-  ['verwoerd',  'apellido del arquitecto del apartheid Hendrik Verwoerd.'],
-  ['pinochet',  'apellido del dictador chileno Augusto Pinochet.'],
-  ['videla',    'apellido del dictador argentino Jorge Rafael Videla.'],
+  // ── Terrorismo
+  ['baghdadi',  'apellido del líder del ISIS Abu Bakr al-Baghdadi.'],
+  ['breivik',   'apellido del terrorista noruego Anders Breivik.'],
+  ['mcveigh',   'apellido del autor del atentado de Oklahoma City Timothy McVeigh.'],
+  ['kaczynski', 'apellido del Unabomber Theodore Kaczynski.'],
+  // ── Asesinos en serie con apellidos extremadamente raros
+  ['dahmer',    'apellido del asesino en serie Jeffrey Dahmer.'],
+  ['chikatilo', 'apellido del asesino en serie Andrei Chikatilo.'],
+  ['garavito',  'apellido del asesino en serie Luis Garavito.'],
+  ['gacy',      'apellido del asesino en serie John Wayne Gacy.'],
+  ['wuornos',   'apellido de la asesina en serie Aileen Wuornos.'],
+  ['arropiero', 'alias del asesino en serie español "El Arropiero".'],
+  ['ferrandiz', 'apellido del asesino en serie español Joaquín Ferrándiz.'],
+  ['ferrándiz', 'apellido del asesino en serie español Joaquín Ferrándiz.'],
+  // ── Tiradores de masas con apellidos raros
+  ['klebold',   'apellido del tirador de Columbine Dylan Klebold.'],
+  ['tarrant',   'apellido del autor de la masacre de Christchurch Brenton Tarrant.'],
+  ['crusius',   'apellido del autor de la masacre de El Paso Patrick Crusius.'],
+  ['paddock',   'apellido del autor del tiroteo de Las Vegas Stephen Paddock.'],
+  // ── Mafia con apellidos raros
+  ['gotti',     'apellido del jefe mafioso John Gotti.'],
+  // ── Abusadores notorios
+  ['epstein',   'apellido del condenado por explotación sexual Jeffrey Epstein.'],
+  ['weinstein', 'apellido del condenado por agresión sexual Harvey Weinstein.'],
+  ['savile',    'apellido del depredador sexual británico Jimmy Savile.'],
+  ['nassar',    'apellido del médico abusador Larry Nassar.'],
+  ['dutroux',   'apellido del pedófilo y asesino belga Marc Dutroux.'],
+  // ── NO incluidos por ser apellidos comunes en sus países (sólo se
+  //    flagean por match nombre+apellido completo):
+  //    Bundy, Manson, Ramirez, Escobar, Capone, Sutcliffe, Gein,
+  //    Holmes, Fish, McGuzmán/Guzmán, Lanza, Harris, Ramos, Whitman,
+  //    Galán, Delgado, Rodríguez, King, Trump, Putin, Castro, Franco,
+  //    Stalin (raro pero usado como pseudónimo), Cortés, Pizarro.
 ]);
