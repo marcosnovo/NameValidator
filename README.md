@@ -6,6 +6,10 @@ trampas de re-segmentación / leet / inversión / Unicode-confusables / Zalgo,
 y **insultos a jugadores** (racismo, homofobia, físicos) en **español, inglés,
 francés y portugués**.
 
+Incluye además **escáner de documentos identificativos por cámara**: lee el
+nombre del DNI/NIE español o pasaportes con MRZ (200+ países, ICAO 9303),
+detecta falsificaciones por checksums y autocompleta el campo de validación.
+
 > ⚠️ **Crítico**: la pantalla del HALO es vista por 80.000 personas y la prensa.
 > El sistema está calibrado para preferir falsos positivos (revisión humana)
 > antes que un falso negativo (mostrar algo soez).
@@ -262,6 +266,80 @@ NameValidator/
 - La concatenación cubre re-segmentaciones por espacios, pero NO captura
   homófonos puros como "Susana Oria" → "su zanahoria" sin la entrada en la
   lista de joke-names. Para esos, la capa AI es indispensable.
+
+---
+
+## Escáner de documento por cámara (OCR + MRZ + DNI)
+
+Pulsa el botón **📷** junto al input para abrir la cámara y escanear un
+documento identificativo. El sistema extrae automáticamente el nombre
+y apellidos, valida el documento y rellena el input principal con el
+nombre detectado.
+
+### Cómo funciona
+
+```
+Cámara → captura JPEG → Tesseract.js (OCR) → Pipeline:
+  1. OCR general (spa+eng) — texto crudo
+  2. Detección MRZ ICAO 9303 (TD1/TD2/TD3) → 200+ países
+  3. Si no hay MRZ → búsqueda DNI/NIE español por regex
+  4. Si no hay nada → heurística de extracción de nombre
+  5. Score de autenticidad (0-100) combinando todas las señales
+```
+
+**Cobertura**:
+- 🛂 **Pasaportes con MRZ** (TD3, 44 chars × 2) — 200+ países, estándar ICAO
+- 🪪 **DNI español 3.0/4.0** (TD1, 30 chars × 3) — desde 2015
+- 🪪 **DNI/NIE visible** — algoritmo de letra mod 23 (independiente del MRZ)
+- 📋 **Otros documentos** — heurística genérica de extracción de nombre
+
+### Detección de falsificación (score 0-100)
+
+| Check | Puntos | Qué valida |
+|---|---:|---|
+| Checksums MRZ | 40 | Algoritmo ICAO 9303 con pesos [7,3,1] sobre número, fecha nac, fecha expir, número personal y compuesto |
+| Letra DNI/NIE | 30 | Algoritmo mod 23 con tabla `TRWAGMYFPDXBNJZSQVHLCKE` |
+| Coherencia fechas | 15 | No expirado, edad razonable (0-130 años) |
+| Confianza OCR | 10 | Sólo si OCR > 70% (filtra fotos malas) |
+| Coherencia MRZ↔DNI | 5 | El número MRZ contiene los dígitos del DNI visible |
+
+Score umbral:
+- `≥ 60` → ✅ Aparenta auténtico
+- `30-59` → ⚠ Resultado parcial (revisar)
+- `< 30` con MRZ/DNI presente → 🚨 Sospechoso de falsificación
+
+> **Limitación**: sin acceso a UV/NFC chip del documento físico, esto es
+> un primer filtro razonable, NO una certificación profesional. Para
+> verificación legal usar lectura del chip del DNI 3.0/4.0 o del NFC del
+> pasaporte (requiere hardware adicional).
+
+### Privacidad
+
+🔒 **100% en el navegador**. La imagen se procesa con Tesseract.js (WASM)
+localmente. **Nada se envía a servidores externos**. Los datos extraídos
+se quedan en este dispositivo. Si configuras el proxy AI (Cloudflare
+Worker), sólo se envía el TEXTO del nombre, nunca la imagen del documento.
+
+### Estructura
+
+```
+docs/lib/ocr/
+├── camera.js              — getUserMedia + captura
+├── tesseractOcr.js        — wrapper Tesseract.js v5 vía CDN
+├── mrz.js                 — parser MRZ ICAO 9303 (TD1/TD2/TD3 + checksums)
+├── dniSpain.js            — DNI/NIE español + algoritmo letra
+└── documentScanner.js     — orquestador: detecta tipo, extrae, valida
+```
+
+### Tests
+
+`scripts/test-ocr-parsers.mjs` ejecuta 27 tests deterministas (MRZ + DNI).
+La cámara y Tesseract requieren browser real para tests E2E.
+
+```bash
+node scripts/test-ocr-parsers.mjs
+# 27/27
+```
 
 ---
 

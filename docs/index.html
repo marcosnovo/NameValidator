@@ -21,11 +21,82 @@
             maxlength="60"
             autocomplete="off"
             spellcheck="false"
-            placeholder="Escribe el nombre del aficionado…"
+            placeholder="Escribe el nombre o escanea un documento…"
           />
+          <button id="scan-btn" type="button" class="ghost icon-btn" title="Escanear documento">📷</button>
           <button id="validate-btn" type="button" class="cta">Validar</button>
         </div>
       </section>
+
+      <!-- Modal escáner de documento (oculto hasta pulsar 📷) -->
+      <div class="modal-backdrop hidden" id="scan-modal">
+        <div class="modal">
+          <div class="modal-head">
+            <h3>📷 Escanear documento</h3>
+            <button id="scan-close" class="ghost icon-btn" title="Cerrar">✕</button>
+          </div>
+
+          <div class="scan-stage" id="scan-stage-camera">
+            <p class="scan-hint">
+              Coloca el documento bien encuadrado y enfocado. Funciona con
+              <strong>DNI/NIE español</strong>, <strong>pasaportes con MRZ</strong> (200+ países)
+              y otros documentos identificativos.
+            </p>
+            <div class="camera-frame">
+              <video id="scan-video" autoplay muted playsinline></video>
+              <div class="frame-guide" aria-hidden="true"></div>
+            </div>
+            <div class="scan-actions">
+              <button id="scan-capture" class="cta" type="button">📸 Capturar</button>
+              <label class="ghost button-like">
+                📁 O sube una foto
+                <input id="scan-file" type="file" accept="image/*" hidden />
+              </label>
+            </div>
+            <p class="warn-line scan-warn">
+              🔒 La imagen se procesa <strong>100% en tu navegador</strong>.
+              No se envía a ningún servidor. Los datos extraídos se quedan
+              en este dispositivo.
+            </p>
+          </div>
+
+          <div class="scan-stage hidden" id="scan-stage-processing">
+            <div class="scan-preview">
+              <img id="scan-preview-img" alt="Documento capturado" />
+            </div>
+            <div class="progress-block">
+              <div class="progress-bar"><div id="scan-progress-fill"></div></div>
+              <p class="progress-text" id="scan-progress-text">Cargando OCR…</p>
+            </div>
+          </div>
+
+          <div class="scan-stage hidden" id="scan-stage-result">
+            <div class="scan-preview small">
+              <img id="scan-preview-img-2" alt="Documento" />
+            </div>
+            <div class="extracted">
+              <h4>Datos extraídos</h4>
+              <dl id="scan-extracted-data"></dl>
+            </div>
+            <div class="authenticity-box" id="scan-authenticity"></div>
+            <div class="scan-actions">
+              <button id="scan-use-name" class="cta" type="button">✓ Usar este nombre</button>
+              <button id="scan-retry" class="ghost" type="button">🔄 Reintentar</button>
+            </div>
+            <details class="advanced">
+              <summary>OCR crudo</summary>
+              <pre id="scan-raw-text"></pre>
+            </details>
+          </div>
+
+          <div class="scan-stage hidden" id="scan-stage-error">
+            <p class="error-msg" id="scan-error-msg">Error al escanear.</p>
+            <div class="scan-actions">
+              <button id="scan-error-retry" class="cta" type="button">Reintentar</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Resultado -->
       <section class="card result hidden" id="result">

@@ -11,6 +11,9 @@
 
 import { validateName } from './lib/validator.js';
 import { buildVariants } from './lib/normalize.js';
+import { DocumentCamera } from './lib/ocr/camera.js';
+import { DocumentScanner } from './lib/ocr/documentScanner.js';
+import { terminateWorker } from './lib/ocr/tesseractOcr.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -501,6 +504,215 @@ saveReviewerBtn.addEventListener('click', () => {
   setReviewer(v);
   reviewerInput.value = '';
   refreshAIModeUI();
+});
+
+// ──────────────────────────────────────────────────────────────────────
+//  Escáner de documento (cámara + Tesseract + MRZ + DNI)
+// ──────────────────────────────────────────────────────────────────────
+const scanBtn = $('#scan-btn');
+const scanModal = $('#scan-modal');
+const scanClose = $('#scan-close');
+const scanVideo = $('#scan-video');
+const scanCapture = $('#scan-capture');
+const scanFile = $('#scan-file');
+const scanPreviewImg = $('#scan-preview-img');
+const scanPreviewImg2 = $('#scan-preview-img-2');
+const scanProgressFill = $('#scan-progress-fill');
+const scanProgressText = $('#scan-progress-text');
+const scanExtractedData = $('#scan-extracted-data');
+const scanAuthenticity = $('#scan-authenticity');
+const scanRawText = $('#scan-raw-text');
+const scanUseName = $('#scan-use-name');
+const scanRetry = $('#scan-retry');
+const scanErrorMsg = $('#scan-error-msg');
+const scanErrorRetry = $('#scan-error-retry');
+
+const stages = {
+  camera: $('#scan-stage-camera'),
+  processing: $('#scan-stage-processing'),
+  result: $('#scan-stage-result'),
+  error: $('#scan-stage-error'),
+};
+
+function showStage(name) {
+  for (const [n, el] of Object.entries(stages)) {
+    el.classList.toggle('hidden', n !== name);
+  }
+}
+
+let camera = null;
+let lastResult = null;
+
+async function openScanner() {
+  scanModal.classList.remove('hidden');
+  showStage('camera');
+  if (!camera) camera = new DocumentCamera(scanVideo);
+  try {
+    await camera.start({ facingMode: 'environment' });
+  } catch (err) {
+    showError(err?.message ?? String(err));
+  }
+}
+
+function closeScanner() {
+  if (camera) {
+    camera.stop();
+  }
+  scanModal.classList.add('hidden');
+  // Termina el worker tras cerrar para liberar ~30MB de RAM
+  terminateWorker().catch(() => {});
+}
+
+function showError(msg) {
+  showStage('error');
+  scanErrorMsg.textContent = msg;
+}
+
+function setProgress(progress, text) {
+  scanProgressFill.style.width = `${Math.round(progress * 100)}%`;
+  if (text) scanProgressText.textContent = text;
+}
+
+function progressLabel(stage, status) {
+  const stageLabel = {
+    'ocr-general': 'Reconociendo texto general',
+    'ocr-mrz-zone': 'Reconociendo zona MRZ',
+    'mrz-parse': 'Parseando MRZ',
+    'dni-spain': 'Detectando DNI/NIE',
+  }[stage] || stage;
+  return status ? `${stageLabel}: ${status}` : stageLabel;
+}
+
+async function processImage(imageSource) {
+  showStage('processing');
+  scanPreviewImg.src = imageSource.dataUrl;
+  scanPreviewImg2.src = imageSource.dataUrl;
+  setProgress(0, 'Cargando OCR…');
+
+  // Detener cámara mientras procesamos (libera la cámara para otros usos)
+  if (camera) camera.stop();
+
+  const scanner = new DocumentScanner();
+  try {
+    const result = await scanner.scan(imageSource.blob, {
+      onProgress: ({ stage, status, progress }) => {
+        setProgress(progress ?? 0, progressLabel(stage, status));
+      },
+    });
+    lastResult = result;
+    renderResult(result);
+  } catch (err) {
+    showError(err?.message ?? String(err));
+  }
+}
+
+function renderResult(result) {
+  showStage('result');
+
+  // Datos extraídos
+  scanExtractedData.innerHTML = '';
+  const rows = [
+    ['Nombre completo', result.fullName, 'value-name'],
+    ['Tipo de documento', `${result.documentType ?? '?'} · ${result.issuingCountry ?? '?'}`],
+    ['Número', result.documentNumber || '—'],
+    ['Fecha de nacimiento', result.birthDate?.iso ?? '—'],
+    ['Fecha de expiración', result.expiryDate?.iso ?? '—'],
+    ['Sexo', result.mrz?.sex ?? '—'],
+  ];
+  for (const [label, value, cls] of rows) {
+    if (!value || value === '—') continue;
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    if (cls) dd.classList.add(cls);
+    scanExtractedData.appendChild(dt);
+    scanExtractedData.appendChild(dd);
+  }
+
+  // Autenticidad
+  const auth = result.authenticity;
+  scanAuthenticity.className = 'authenticity-box ' + (auth.passed ? 'ok' : auth.suspectedFake ? 'bad' : 'warn');
+  const verdict = auth.passed
+    ? `✓ Aparenta ser auténtico (${auth.score}/100)`
+    : auth.suspectedFake
+      ? `⚠ Sospechoso de falsificación (${auth.score}/100)`
+      : `? Resultado parcial (${auth.score}/100)`;
+  const detailParts = [];
+  if (auth.checks.mrzChecksums) {
+    detailParts.push(`MRZ ${auth.checks.mrzChecksums.passed}/${auth.checks.mrzChecksums.total}`);
+  }
+  if (auth.checks.dniLetter) {
+    detailParts.push(`Letra DNI ${auth.checks.dniLetter.valid ? '✓' : '✗'}`);
+  }
+  if (auth.checks.dates?.expired === true) {
+    detailParts.push('expirado');
+  }
+  scanAuthenticity.innerHTML = `
+    <div class="auth-title">${escapeHtml(verdict)}</div>
+    <div class="auth-detail">${escapeHtml(detailParts.join(' · '))}</div>
+  `;
+
+  // Raw text
+  scanRawText.textContent = result.rawText || '(sin texto)';
+
+  // Si no extrajo nada, lo decimos
+  if (!result.fullName) {
+    scanAuthenticity.className = 'authenticity-box bad';
+    scanAuthenticity.innerHTML = `
+      <div class="auth-title">No se pudo extraer un nombre</div>
+      <div class="auth-detail">Prueba con mejor iluminación, encuadre o foto más nítida.</div>
+    `;
+    scanUseName.disabled = true;
+  } else {
+    scanUseName.disabled = false;
+  }
+}
+
+scanBtn.addEventListener('click', openScanner);
+scanClose.addEventListener('click', closeScanner);
+
+scanCapture.addEventListener('click', async () => {
+  if (!camera) return;
+  try {
+    const captured = await camera.captureWithPreview();
+    await processImage(captured);
+  } catch (err) {
+    showError(err?.message ?? String(err));
+  }
+});
+
+scanFile.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  if (camera) camera.stop();
+  const reader = new FileReader();
+  reader.onload = () => {
+    processImage({ blob: f, dataUrl: reader.result });
+  };
+  reader.readAsDataURL(f);
+});
+
+scanRetry.addEventListener('click', async () => {
+  showStage('camera');
+  if (camera) await camera.start({ facingMode: 'environment' });
+});
+scanErrorRetry.addEventListener('click', async () => {
+  showStage('camera');
+  if (camera) await camera.start({ facingMode: 'environment' });
+});
+
+scanUseName.addEventListener('click', () => {
+  if (lastResult?.fullName) {
+    input.value = lastResult.fullName;
+    closeScanner();
+    validate();
+  }
+});
+
+// Cierre del modal con tecla Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !scanModal.classList.contains('hidden')) closeScanner();
 });
 
 // ── Boot ────────────────────────────────────────────────────────────────
