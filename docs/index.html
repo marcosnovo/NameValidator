@@ -79,6 +79,7 @@
             <div class="scan-preview small">
               <img id="scan-preview-img-2" alt="Documento" />
             </div>
+            <div class="quality-box" id="scan-quality"></div>
             <div class="extracted">
               <h4>Datos extraídos</h4>
               <dl id="scan-extracted-data"></dl>
@@ -89,7 +90,8 @@
               <button id="scan-retry" class="ghost" type="button">🔄 Reintentar</button>
             </div>
             <details class="advanced">
-              <summary>OCR crudo</summary>
+              <summary>Detalle técnico (pasadas OCR + texto crudo)</summary>
+              <dl class="ocr-detail" id="scan-ocr-detail"></dl>
               <pre id="scan-raw-text"></pre>
             </details>
           </div>

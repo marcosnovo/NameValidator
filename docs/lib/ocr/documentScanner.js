@@ -33,13 +33,19 @@
 //   4. Si no hay nada, fallback: extraer nombres por heurística
 //   5. Calcular score de autenticidad combinando todas las señales
 
-import { recognize, recognizeMrz } from './tesseractOcr.js';
+import { recognize, recognizeMrz, recognizeMulti } from './tesseractOcr.js';
 import { parseMrz } from './mrz.js';
 import { findDniNieInText, validateDniNie } from './dniSpain.js';
 import { parseDniSpainFront } from './dniSpainFront.js';
 import { parsePassportFront } from './passportFront.js';
 import { parseDrivingLicense } from './drivingLicense.js';
 import { detectDocumentType } from './identityLabels.js';
+import {
+  imageToCanvas,
+  preprocessForOcr,
+  preprocessForOcrSoft,
+  estimatePhotoQuality,
+} from './imagePreprocess.js';
 
 export class DocumentScanner {
   /**
@@ -66,15 +72,67 @@ export class DocumentScanner {
       dniNie: null,
     };
 
-    // ── PASO 1: OCR general ───────────────────────────────────────────────
-    onProgress({ stage: 'ocr-general', progress: 0 });
-    const ocr = await recognize(image, {
-      languages: 'spa+eng',
-      onProgress: (p) =>
-        onProgress({ stage: 'ocr-general', status: p.status, progress: p.progress }),
-    });
-    result.rawText = ocr.text;
-    result.ocrConfidence = ocr.confidence;
+    // ── PASO 0: Convertir a canvas + estimar calidad de foto ──────────────
+    onProgress({ stage: 'analyze', progress: 0.1 });
+    const canvas = await imageToCanvas(image);
+    const quality = estimatePhotoQuality(canvas);
+    result.photoQuality = quality;
+
+    // Si la calidad es muy mala, devolvemos antes con sugerencias.
+    // El operador puede verlas y sacar mejor foto sin esperar al OCR.
+    if (quality.quality === 'poor' && quality.score < 30) {
+      result.ok = false;
+      result.qualityRejected = true;
+      result.authenticity = { score: 0, passed: false, suspectedFake: false, checks: {} };
+      return result;
+    }
+
+    // ── PASO 1: MULTI-PASS OCR (3 preprocesados en paralelo) ──────────────
+    // Pasada A: imagen original (Tesseract decide la binarización)
+    // Pasada B: pipeline FUERTE (gris + autocontraste + sharpen + Sauvola
+    //           + upscale 2×) — bien para DNIs y documentos con texto fino
+    // Pasada C: pipeline SOFT (sin threshold, mantiene grises) — bien para
+    //           pasaportes y carnets con diseños complejos donde el
+    //           threshold corta letras
+    //
+    // El recognizeMulti los lanza en paralelo (createScheduler) y devuelve
+    // el de mayor confianza + todos los textos para combinarlos después.
+    onProgress({ stage: 'preprocess', progress: 0.2 });
+    let preprocessedHard, preprocessedSoft;
+    try {
+      preprocessedHard = preprocessForOcr(canvas);
+      preprocessedSoft = preprocessForOcrSoft(canvas);
+    } catch (err) {
+      // Si falla el preprocesado por OOM o algo, seguimos sólo con original
+      preprocessedHard = canvas;
+      preprocessedSoft = canvas;
+    }
+
+    onProgress({ stage: 'ocr-multi', progress: 0.3 });
+    const multi = await recognizeMulti(
+      [
+        { label: 'original', image: canvas },
+        { label: 'hard', image: preprocessedHard },
+        { label: 'soft', image: preprocessedSoft },
+      ],
+      { languages: 'spa+eng' },
+    );
+    onProgress({ stage: 'ocr-multi', progress: 0.7 });
+
+    // Concatenamos TODOS los textos para que los parsers tengan máxima
+    // chance de encontrar labels (diferentes pasadas pueden capturar
+    // labels distintos). Pero conservamos por separado para debug.
+    const combinedText = multi.all.map((r) => r.text).join('\n');
+    result.rawText = combinedText;
+    result.ocrConfidence = multi.best.confidence;
+    result.passes = multi.all.map(({ label, confidence, text }) => ({
+      label,
+      confidence,
+      length: text.length,
+    }));
+
+    // Para los parsers usamos el texto COMBINADO (más cobertura).
+    const ocr = { text: combinedText, confidence: multi.best.confidence };
 
     // ── PASO 2: ¿Hay MRZ? Lo intentamos directo con texto general
     onProgress({ stage: 'mrz-parse', progress: 0 });

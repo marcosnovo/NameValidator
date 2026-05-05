@@ -609,6 +609,45 @@ async function processImage(imageSource) {
 function renderResult(result) {
   showStage('result');
 
+  // ── Calidad de foto (visible al inicio para feedback rápido)
+  const qBox = $('#scan-quality');
+  if (result.photoQuality) {
+    const q = result.photoQuality;
+    qBox.className = `quality-box ${q.quality}`;
+    const label = { good: '✓ Foto buena', fair: '⚠ Foto regular', poor: '🚨 Foto mala' }[q.quality];
+    const hintsHtml = q.hints?.length
+      ? '<ul>' + q.hints.map((h) => `<li>${escapeHtml(h)}</li>`).join('') + '</ul>'
+      : '';
+    qBox.innerHTML = `<div class="q-title">${label} · calidad ${q.score}/100</div>${hintsHtml}`;
+    qBox.classList.remove('hidden');
+  } else {
+    qBox.classList.add('hidden');
+  }
+
+  // ── Detalle técnico de las pasadas OCR
+  const ocrDetail = $('#scan-ocr-detail');
+  if (result.passes?.length) {
+    ocrDetail.innerHTML = result.passes
+      .map(
+        (p) =>
+          `<dt>Pasada ${escapeHtml(p.label)}</dt>` +
+          `<dd>conf ${p.confidence?.toFixed?.(1) ?? '?'}% · ${p.length} chars</dd>`,
+      )
+      .join('');
+  } else {
+    ocrDetail.innerHTML = '';
+  }
+
+  // Si la foto fue rechazada por calidad mala, no seguimos
+  if (result.qualityRejected) {
+    $('#scan-extracted-data').innerHTML =
+      '<dt>—</dt><dd>Foto rechazada por calidad. Sigue las sugerencias arriba y reintenta.</dd>';
+    $('#scan-authenticity').classList.add('hidden');
+    $('#scan-use-name').disabled = true;
+    return;
+  }
+  $('#scan-authenticity').classList.remove('hidden');
+
   // Datos extraídos
   scanExtractedData.innerHTML = '';
   const docTypeLabel = {

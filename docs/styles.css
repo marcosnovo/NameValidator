@@ -650,3 +650,36 @@ footer a:hover { text-decoration: underline; }
   color: var(--fg);
   margin: 12px 0;
 }
+
+/* ── Caja de calidad de foto ───────────────────────────────────────── */
+.quality-box {
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  border-left: 3px solid var(--border-strong);
+  background: var(--bg-input);
+}
+.quality-box.good { border-left-color: var(--ok);  background: rgba(52, 211, 153, 0.08); }
+.quality-box.fair { border-left-color: var(--warn); background: rgba(251, 191, 36, 0.08); }
+.quality-box.poor { border-left-color: var(--bad);  background: rgba(239, 68, 68, 0.08); }
+.quality-box .q-title { font-weight: 700; margin-bottom: 4px; }
+.quality-box ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.76rem;
+  color: var(--fg-dim);
+}
+
+.ocr-detail dt {
+  color: var(--fg-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 6px;
+}
+.ocr-detail dd {
+  margin: 2px 0 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+}

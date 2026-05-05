@@ -139,4 +139,92 @@ export async function terminateWorker() {
     workerPromise = null;
     workerLanguages = '';
   }
+  if (schedulerPromise) {
+    try {
+      const s = await schedulerPromise;
+      await s.terminate();
+    } catch {}
+    schedulerPromise = null;
+    schedulerLanguages = '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  SCHEDULER MULTI-WORKER — pasadas en paralelo con distintos preprocesados
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Aprovecha createScheduler() de Tesseract.js para correr varias OCRs en
+// paralelo (uno por preprocesado distinto: original, threshold, soft) y
+// quedarnos con el resultado de mayor confianza.
+//
+// En navegadores con varios cores, esto es ~3× más rápido que pasadas
+// secuenciales y la calidad final es mejor (el voto por confianza
+// neutraliza preprocesados malos para el documento concreto).
+
+let schedulerPromise = null;
+let schedulerLanguages = '';
+
+/**
+ * Construye un scheduler con N workers (uno por core disponible, max 3).
+ */
+export async function getScheduler(languages = 'spa+eng', progressCb = null) {
+  const Tesseract = await loadTesseract();
+  if (schedulerPromise && schedulerLanguages === languages) return schedulerPromise;
+  if (schedulerPromise) {
+    try { (await schedulerPromise).terminate(); } catch {}
+  }
+  schedulerLanguages = languages;
+  schedulerPromise = (async () => {
+    const numWorkers = Math.min(3, navigator.hardwareConcurrency || 2);
+    const scheduler = Tesseract.createScheduler();
+    const workers = await Promise.all(
+      Array.from({ length: numWorkers }, () =>
+        Tesseract.createWorker(languages, 1, {
+          logger: progressCb
+            ? (m) => progressCb({ status: m.status, progress: m.progress })
+            : undefined,
+        }),
+      ),
+    );
+    for (const w of workers) scheduler.addWorker(w);
+    return scheduler;
+  })();
+  return schedulerPromise;
+}
+
+/**
+ * Reconoce VARIAS imágenes en paralelo (una por cada preprocesado).
+ * Devuelve el resultado del que tenga MAYOR confianza media.
+ *
+ * @param {Array<{label: string, image: any, charWhitelist?: string}>} jobs
+ * @param {string} [languages='spa+eng']
+ * @returns {Promise<{best: any, all: any[]}>}
+ */
+export async function recognizeMulti(jobs, { languages = 'spa+eng' } = {}) {
+  if (!jobs?.length) throw new Error('recognizeMulti: jobs vacío');
+  const scheduler = await getScheduler(languages);
+
+  const results = await Promise.all(
+    jobs.map(async (job) => {
+      try {
+        const params = {};
+        if (job.charWhitelist) params.tessedit_char_whitelist = job.charWhitelist;
+        const { data } = await scheduler.addJob('recognize', job.image, params);
+        return {
+          label: job.label,
+          text: data.text,
+          confidence: data.confidence,
+          lines: data.lines || [],
+          words: data.words || [],
+        };
+      } catch (err) {
+        return { label: job.label, text: '', confidence: 0, error: err.message };
+      }
+    }),
+  );
+
+  // Best = el de mayor confianza
+  let best = results[0];
+  for (const r of results) if (r.confidence > best.confidence) best = r;
+  return { best, all: results };
 }
