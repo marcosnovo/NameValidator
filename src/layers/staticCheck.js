@@ -4,11 +4,15 @@
 // casos obvios sin gastar un solo token de IA.
 
 import { spanishProfanity, spanishJokeNames, spanishExactOnly } from '../blocklists/spanish.js';
-import { englishProfanity, englishExactOnly } from '../blocklists/english.js';
-import { frenchProfanity, frenchExactOnly } from '../blocklists/french.js';
+import { englishProfanity, englishJokeNames, englishExactOnly } from '../blocklists/english.js';
+import { frenchProfanity, frenchJokeNames, frenchExactOnly } from '../blocklists/french.js';
 
 // Aplana todas las palabras-broma a sus formas concatenadas.
-const jokeFormsES = spanishJokeNames.map(([form, why]) => ({ form, why }));
+const jokeForms = [
+  ...spanishJokeNames.map(([form, why]) => ({ form, why, lang: 'es' })),
+  ...englishJokeNames.map(([form, why]) => ({ form, why, lang: 'en' })),
+  ...frenchJokeNames.map(([form, why]) => ({ form, why, lang: 'fr' })),
+];
 
 function findHit(haystacks, needle, exactOnly) {
   for (const view of haystacks) {
@@ -93,8 +97,8 @@ export function staticCheck(variants) {
     }
   }
 
-  // ── ES nombres-broma conocidos
-  for (const { form, why } of jokeFormsES) {
+  // ── Nombres-broma conocidos en ES/EN/FR
+  for (const { form, why, lang } of jokeForms) {
     const cleaned = form.replace(/\s/g, '');
     if (
       variants.concatNoSpaces.includes(cleaned) ||
@@ -102,7 +106,7 @@ export function staticCheck(variants) {
     ) {
       issues.push({
         layer: 'static',
-        lang: 'es',
+        lang,
         category: 'joke-name',
         match: form,
         view: variants.concatNoSpaces,

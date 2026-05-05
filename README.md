@@ -20,7 +20,7 @@ input ──▶ ① Format ──▶ ② Normalización ──▶ ③ Listas ES/
 |---|---|---|
 | **① Format** | Longitud, charset Unicode permitido | 0 |
 | **② Normalización** | NFD (sin acentos), lowercase, leet (`0→o`,`@→a`,`7→t`…), tokens, concatenado-sin-espacios, invertido | 0 |
-| **③ Listas estáticas** | ~600 entradas: vulgaridades + slurs + nombres-broma canónicos en ES/EN/FR | 0 |
+| **③ Listas estáticas** | ~1.000 entradas: vulgaridades + slurs + ~600 nombres-broma canónicos en ES/EN/FR (curados de blogs como *La sala de la curiosidad*, Topito, Wikipedia *Monsieur et Madame*, *Bart Simpson prank calls*, Mediavida, etc.) | 0 |
 | **④ Sliding-window / concat** | Busca subcadenas en TODAS las vistas normalizadas (concatenada, deleeted, invertida). Atrapa *Aitor Tilla* → `aitortilla` | 0 |
 | **⑤ Capa semántica AI** | Claude Opus 4.7 con *adaptive thinking* + *effort:high*. Detecta dobles sentidos NUEVOS, homófonos, re-segmentaciones que las listas no cubren. Output estructurado vía `json_schema`. | tokens |
 
