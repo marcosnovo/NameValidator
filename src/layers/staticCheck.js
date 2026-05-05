@@ -15,6 +15,9 @@ import { frenchProfanity, frenchJokeNames, frenchExactOnly } from '../blocklists
 import { portugueseProfanity, portugueseJokeNames, portugueseExactOnly } from '../blocklists/portuguese.js';
 import { germanProfanity, germanJokeNames, germanExactOnly } from '../blocklists/german.js';
 import { italianProfanity, italianJokeNames, italianExactOnly } from '../blocklists/italian.js';
+import { russianProfanity, russianJokeNames, russianExactOnly } from '../blocklists/russian.js';
+import { polishProfanity, polishJokeNames, polishExactOnly } from '../blocklists/polish.js';
+import { arabicProfanity, arabicJokeNames, arabicExactOnly } from '../blocklists/arabic.js';
 import { spanishExternal } from '../blocklists/external/es.js';
 import { englishExternal } from '../blocklists/external/en.js';
 import { frenchExternal } from '../blocklists/external/fr.js';
@@ -26,13 +29,17 @@ import {
   commonAloneSurnames,
 } from '../blocklists/realMadrid.js';
 import { playerNameTokens, contextSensitiveSlurs } from '../blocklists/sensitiveContexts.js';
+import { getContext, DEFAULT_CONTEXT } from '../contexts/index.js';
 import { applyScunthorpeWhitelist, scunthorpeWhitelist } from '../blocklists/scunthorpeWhitelist.js';
 import {
   historicalFiguresAcEntries,
   historicalFigureTokens,
   HISTORICAL_RARE_SURNAMES,
 } from '../blocklists/historicalFigures.js';
-import { phoneticEs, phoneticEn, phoneticFr, phoneticPt, phoneticDe, phoneticIt } from '../normalize.js';
+import {
+  phoneticEs, phoneticEn, phoneticFr, phoneticPt,
+  phoneticDe, phoneticIt, phoneticRu, phoneticPl, phoneticAr,
+} from '../normalize.js';
 import { buildAhoCorasick } from '../lib/ahoCorasick.js';
 import { fuzzyContains } from '../lib/fuzzyMatch.js';
 
@@ -44,6 +51,9 @@ const PHONETIC_FN = {
   pt: phoneticPt,
   de: phoneticDe,
   it: phoneticIt,
+  ru: phoneticRu,
+  pl: phoneticPl,
+  ar: phoneticAr,
 };
 
 // Aplana todas las palabras-broma a sus formas concatenadas y precalcula
@@ -56,11 +66,9 @@ const jokeForms = [
   ...portugueseJokeNames.map(([form, why]) => ({ form, why, lang: 'pt', phonetic: phoneticPt(form) })),
   ...germanJokeNames.map(([form, why]) => ({ form, why, lang: 'de', phonetic: phoneticDe(form) })),
   ...italianJokeNames.map(([form, why]) => ({ form, why, lang: 'it', phonetic: phoneticIt(form) })),
-];
-
-const realMadridForms = [
-  ...rivalPlayerFullNames.map(([form, why]) => ({ form, why, category: 'rival-player', phonetic: phoneticEs(form) })),
-  ...antiMadridChants.map(([form, why]) => ({ form, why, category: 'anti-madrid', phonetic: phoneticEs(form) })),
+  ...russianJokeNames.map(([form, why]) => ({ form, why, lang: 'ru', phonetic: phoneticRu(form) })),
+  ...polishJokeNames.map(([form, why]) => ({ form, why, lang: 'pl', phonetic: phoneticPl(form) })),
+  ...arabicJokeNames.map(([form, why]) => ({ form, why, lang: 'ar', phonetic: phoneticAr(form) })),
 ];
 
 // ─── Aho-Corasick: pre-construido al cargar el módulo ─────────────────────
@@ -91,6 +99,9 @@ const acPT = buildLangAC(portugueseProfanity, portugueseExternal, portugueseExac
 // ahora). Pasamos array vacío como "external" para reusar el mismo helper.
 const acDE = buildLangAC(germanProfanity, [], germanExactOnly);
 const acIT = buildLangAC(italianProfanity, [], italianExactOnly);
+const acRU = buildLangAC(russianProfanity, [], russianExactOnly);
+const acPL = buildLangAC(polishProfanity, [], polishExactOnly);
+const acAR = buildLangAC(arabicProfanity, [], arabicExactOnly);
 
 // AC fonético (mismas listas pero con cada palabra transformada)
 const acESPhonetic = buildAhoCorasick(
@@ -123,11 +134,30 @@ const acITPhonetic = buildAhoCorasick(
     .filter((w) => typeof w === 'string' && !italianExactOnly.has(w) && w.length >= 3)
     .map((w) => [phoneticIt(w.replace(/\s/g, '')), w])
 );
+const acRUPhonetic = buildAhoCorasick(
+  russianProfanity
+    .filter((w) => typeof w === 'string' && !russianExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticRu(w.replace(/\s/g, '')), w])
+);
+const acPLPhonetic = buildAhoCorasick(
+  polishProfanity
+    .filter((w) => typeof w === 'string' && !polishExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticPl(w.replace(/\s/g, '')), w])
+);
+const acARPhonetic = buildAhoCorasick(
+  arabicProfanity
+    .filter((w) => typeof w === 'string' && !arabicExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticAr(w.replace(/\s/g, '')), w])
+);
 
-const acByLang = { es: acES, en: acEN, fr: acFR, pt: acPT, de: acDE, it: acIT };
+const acByLang = {
+  es: acES, en: acEN, fr: acFR, pt: acPT,
+  de: acDE, it: acIT, ru: acRU, pl: acPL, ar: acAR,
+};
 const acPhoneticByLang = {
   es: acESPhonetic, en: acENPhonetic, fr: acFRPhonetic, pt: acPTPhonetic,
   de: acDEPhonetic, it: acITPhonetic,
+  ru: acRUPhonetic, pl: acPLPhonetic, ar: acARPhonetic,
 };
 
 // AC para joke names (todos los idiomas en uno, con metadata del idioma)
@@ -141,16 +171,56 @@ const acJokesPhonetic = buildAhoCorasick(
   ])
 );
 
-// AC para Real Madrid: full-name combinations + chants
-const acRealMadrid = buildAhoCorasick(
-  realMadridForms.map(({ form, why, category }) => [form.replace(/\s/g, ''), { why, category }])
-);
-const acRealMadridPhonetic = buildAhoCorasick(
-  realMadridForms.map(({ form, why, category, phonetic }) => [
-    phonetic || form.replace(/\s/g, ''),
-    { why, category },
-  ])
-);
+// ─── Tablas AC por contexto (cache per-context) ────────────────────────
+// Patrón multi-tenant: cada cliente (Real Madrid, FC Barcelona, etc.)
+// tiene sus propias listas de rivales/cánticos/jugadores propios. La
+// primera vez que un contexto se invoca se construyen sus tablas y se
+// cachean. La cache vive durante toda la ejecución del proceso.
+const _contextCache = new Map();
+
+function buildContextTables(ctx) {
+  const forms = [
+    ...ctx.rivalPlayerFullNames.map(([form, why]) =>
+      ({ form, why, category: 'rival-player', phonetic: phoneticEs(form) })),
+    ...ctx.antiClubChants.map(([form, why]) =>
+      ({ form, why, category: 'anti-club', phonetic: phoneticEs(form) })),
+  ];
+  return {
+    forms,
+    ac: buildAhoCorasick(
+      forms.map(({ form, why, category }) =>
+        [form.replace(/\s/g, ''), { why, category }])
+    ),
+    acPhonetic: buildAhoCorasick(
+      forms.map(({ form, why, category, phonetic }) =>
+        [phonetic || form.replace(/\s/g, ''), { why, category }])
+    ),
+    aloneRivalSurnames: [
+      ...ctx.uniqueAloneSurnames.map(([form, why]) =>
+        ({ form, why, severity: 'high' })),
+      ...ctx.commonAloneSurnames.map(([form, why]) =>
+        ({ form, why, severity: 'medium' })),
+    ],
+    ownPlayerTokens: ctx.ownPlayerTokens || new Set(),
+  };
+}
+
+function getContextTables(ctx) {
+  let tables = _contextCache.get(ctx.id);
+  if (!tables) {
+    tables = buildContextTables(ctx);
+    _contextCache.set(ctx.id, tables);
+  }
+  return tables;
+}
+
+// Pre-construimos la tabla del contexto por defecto al cargar el módulo
+// (zero overhead extra para el caso común Real Madrid).
+const _defaultTables = getContextTables(DEFAULT_CONTEXT);
+
+// Compatibilidad con el código pre-multi-tenant que importaba estos:
+const acRealMadrid = _defaultTables.ac;
+const acRealMadridPhonetic = _defaultTables.acPhonetic;
 
 // AC para figuras históricas polémicas (dictadores, conquistadores…).
 // IMPORTANTE: estas coincidencias NO bloquean. Sólo bajan la confianza y
@@ -176,10 +246,10 @@ const fuzzyTargetsES = [...spanishProfanity, ...spanishExternal]
   .filter((w) => !w.includes(' ') && w.length >= 5)
   .slice(0, 200); // top 200 para mantener latencia razonable
 
-const aloneRivalSurnames = [
-  ...uniqueAloneSurnames.map(([form, why]) => ({ form, why, severity: 'high' })),
-  ...commonAloneSurnames.map(([form, why]) => ({ form, why, severity: 'medium' })),
-];
+// `aloneRivalSurnames` ahora vive dentro de cada contexto vía
+// `getContextTables(ctx).aloneRivalSurnames`. Mantenemos esta variable
+// por compatibilidad con tests/tooling externo que la pudieran importar:
+const aloneRivalSurnames = _defaultTables.aloneRivalSurnames;
 
 // Pre-computa las palabras Scunthorpe REVERTIDAS para perforar el view
 // `reversedConcat`. Sólo se construye una vez al cargar el módulo.
@@ -312,16 +382,35 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
   }
 }
 
-export function staticCheck(variants) {
+/**
+ * Capa estática multi-tenant.
+ *
+ * @param {Object} variants — salida de buildVariants()
+ * @param {Object} [options]
+ * @param {string|Object} [options.context='real-madrid'] — id de contexto
+ *        ('real-madrid', 'fc-barcelona', …) o el objeto de contexto en sí.
+ *        Determina qué jugadores rivales / cánticos se consideran ofensivos
+ *        para este cliente.
+ */
+export function staticCheck(variants, options = {}) {
   const issues = [];
 
-  // ── Profanity ES/EN/FR/PT con matching directo Y fonético ──────────────
+  // Resolver contexto. Aceptamos id (string) o el objeto de contexto.
+  const ctx = typeof options.context === 'string'
+    ? getContext(options.context)
+    : (options.context || DEFAULT_CONTEXT);
+  const ctxTables = getContextTables(ctx);
+
+  // ── Profanity ES/EN/FR/PT/DE/IT con matching directo Y fonético ────────
   checkProfanityList(spanishProfanity,    spanishExactOnly,    'es', variants, issues);
   checkProfanityList(englishProfanity,    englishExactOnly,    'en', variants, issues);
   checkProfanityList(frenchProfanity,     frenchExactOnly,     'fr', variants, issues);
   checkProfanityList(portugueseProfanity, portugueseExactOnly, 'pt', variants, issues);
   checkProfanityList(germanProfanity,     germanExactOnly,     'de', variants, issues);
   checkProfanityList(italianProfanity,    italianExactOnly,    'it', variants, issues);
+  checkProfanityList(russianProfanity,    russianExactOnly,    'ru', variants, issues);
+  checkProfanityList(polishProfanity,     polishExactOnly,     'pl', variants, issues);
+  checkProfanityList(arabicProfanity,     arabicExactOnly,     'ar', variants, issues);
 
   // ── Nombres-broma conocidos — Aho-Corasick directo + fonético ───────────
   // O(n+matches) en vez de iterar 700 patrones. Sin Scunthorpe whitelist
@@ -333,7 +422,7 @@ export function staticCheck(variants) {
       // Match fonético — buscamos en cada vista fonética con el AC del
       // idioma original del nombre (los joke names ES → phoneticEs, etc.)
       // Como acJokesPhonetic mezcla idiomas, intentamos en cada vista.
-      for (const lang of ['es', 'en', 'fr', 'pt']) {
+      for (const lang of ['es', 'en', 'fr', 'pt', 'de', 'it', 'ru', 'pl', 'ar']) {
         const view = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
         if (!view) continue;
         m = acJokesPhonetic.firstMatch(view);
@@ -354,11 +443,12 @@ export function staticCheck(variants) {
     }
   }
 
-  // ── Real Madrid: full-name combinations + chants — Aho-Corasick ────────
+  // ── Contexto del cliente (Real Madrid / FC Barcelona / …): full-name
+  //    combinations + chants — Aho-Corasick — multi-tenant
   {
-    let m = acRealMadrid.firstMatch(variants.concatNoSpaces);
-    if (!m) m = acRealMadrid.firstMatch(variants.dedupedConcat);
-    if (!m) m = acRealMadridPhonetic.firstMatch(variants.phoneticEs);
+    let m = ctxTables.ac.firstMatch(variants.concatNoSpaces);
+    if (!m) m = ctxTables.ac.firstMatch(variants.dedupedConcat);
+    if (!m) m = ctxTables.acPhonetic.firstMatch(variants.phoneticEs);
     if (m) {
       issues.push({
         layer: 'static',
@@ -368,12 +458,13 @@ export function staticCheck(variants) {
         view: variants.concatNoSpaces,
         reason: m.meta.why,
         severity: 'high',
+        context: ctx.id,
       });
     }
   }
 
-  // ── Apellidos rivales SOLOS — match exact-equals al concat ──────────────
-  for (const { form, why, severity } of aloneRivalSurnames) {
+  // ── Apellidos rivales SOLOS — match exact-equals al concat (multi-tenant)
+  for (const { form, why, severity } of ctxTables.aloneRivalSurnames) {
     if (
       variants.concatNoSpaces === form ||
       variants.dedupedConcat === form ||
@@ -387,6 +478,7 @@ export function staticCheck(variants) {
         view: variants.concatNoSpaces,
         reason: why,
         severity,
+        context: ctx.id,
       });
     }
   }
@@ -396,7 +488,9 @@ export function staticCheck(variants) {
   // de cualquier idioma, lo marcamos como racism-context con severity:high.
   // Esto cubre "Vinicius mono", "Mbappé macaco", "Bellingham viejo", etc.,
   // donde la combinación es ofensiva aunque cada palabra suelta sea ambigua.
-  detectPlayerInsultContext(variants, issues);
+  // El set de "jugadores propios" viene del contexto (Real Madrid: Vinicius,
+  // Bellingham…; FC Barcelona: Yamal, Pedri, Lewandowski…).
+  detectPlayerInsultContext(variants, issues, ctxTables.ownPlayerTokens, ctx.id);
 
   // ── Figuras históricas polémicas (dictadores, genocidas, conquistadores) ──
   // NO bloquean. Sólo emiten severity:medium → REVIEW HUMANO con el motivo
@@ -504,12 +598,20 @@ function detectHistoricalFigures(variants, issues) {
   return false;
 }
 
-function detectPlayerInsultContext(variants, issues) {
+function detectPlayerInsultContext(variants, issues, ownPlayerTokens, contextId) {
   const tokens = variants.tokens;
   if (!tokens || tokens.length < 2) return;
 
+  // Conjunto de jugadores propios — viene del contexto. Mantenemos la
+  // unión con el set legacy `playerNameTokens` (que también incluye
+  // "estrellas globales" como Pogba, Salah…) para no perder coberturas
+  // existentes ni hacer regresar el caso "Vinicius mono" en Real Madrid.
+  const playerSet = ownPlayerTokens && ownPlayerTokens.size
+    ? new Set([...ownPlayerTokens, ...playerNameTokens])
+    : playerNameTokens;
+
   // ¿Hay algún token que sea un jugador famoso?
-  const playerToken = tokens.find((t) => playerNameTokens.has(t));
+  const playerToken = tokens.find((t) => playerSet.has(t));
   if (!playerToken) return;
 
   // ¿Hay algún token que sea un slur contextual en cualquier idioma?
@@ -525,6 +627,7 @@ function detectPlayerInsultContext(variants, issues) {
           view: tokens.join(' '),
           reason: `Insulto a jugador: combinación "${playerToken}" + "${t}" (${lang}). Inaceptable en el HALO.`,
           severity: 'high',
+          context: contextId,
         });
         return; // sólo emitimos un issue por input
       }

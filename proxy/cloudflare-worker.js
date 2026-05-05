@@ -170,15 +170,22 @@ export default {
         {
           ok: true,
           ai_layer: !!env.ANTHROPIC_API_KEY,
-          kv_layer: !!env.KV,                // ← nuevo: cache + aprobaciones
+          kv_layer: !!env.KV,                // ← cache + aprobaciones + métricas
           model: 'claude-opus-4-7',          // /api/ai-check (validación)
           vision_model: 'claude-sonnet-4-6', // /api/scan-document (OCR)
-          endpoints: ['/api/ai-check', '/api/scan-document', '/api/approve'],
+          endpoints: [
+            '/api/ai-check', '/api/scan-document', '/api/approve', '/api/metrics',
+          ],
           mode: 'cloudflare-worker',
         },
         200,
         cors,
       );
+    }
+
+    // Métricas agregadas — útil para el dashboard del operario.
+    if (request.method === 'GET' && url.pathname === '/api/metrics') {
+      return getMetrics(env, cors);
     }
 
     if (request.method !== 'POST') {
@@ -429,17 +436,136 @@ async function canonicalHash(input) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Métricas — log estructurado JSON
+//  Métricas — log estructurado JSON + agregación en KV
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Cloudflare Logs (logpush, Workers Trace) capturan automáticamente los
-// console.log. Loguear como JSON una sola línea permite agregación con
-// Logflare/Grafana/Datadog/etc.
+// Dos canales:
+//   ▸ console.log JSON  — Cloudflare Logs / Logpush los captura automático
+//                         para envío a Logflare / Grafana / Datadog.
+//   ▸ KV counters       — agregación día-a-día en `metrics:YYYY-MM-DD` para
+//                         dashboard sin depender de logs externos.
+//
+// Estructura del counter diario (entrada KV):
+//   {
+//     date: "2026-05-05",
+//     totals: { ai_check: 0, approve: 0, scan_document: 0 },
+//     verdicts: { CLEAN: 0, SUSPICIOUS: 0, OFFENSIVE: 0, REVIEW: 0,
+//                 ALLOWED: 0, REJECTED: 0, ERROR: 0 },
+//     sources: { 'human-approval-cache': 0, 'kv-cache': 0, 'anthropic': 0 },
+//     latency_ms: { sum: 0, count: 0 },   // promedio = sum/count
+//     errors: 0,
+//   }
+//
+// TTL 90 días por entrada — historial de los últimos 3 meses.
+
+const METRICS_PREFIX = 'metrics:';
+const METRICS_TTL_SECONDS = 60 * 60 * 24 * 90;
+
+function todayKey() {
+  return METRICS_PREFIX + new Date().toISOString().slice(0, 10);
+}
+
 function logMetrics(env, ctx, fields) {
   const entry = { ts: new Date().toISOString(), ...fields };
-  try {
-    console.log(JSON.stringify(entry));
-  } catch {}
+  try { console.log(JSON.stringify(entry)); } catch {}
+
+  // Agregación en KV — best-effort. waitUntil para no bloquear la respuesta.
+  if (!env.KV) return;
+  const updater = async () => {
+    const key = todayKey();
+    let m;
+    try { m = await env.KV.get(key, 'json'); } catch { m = null; }
+    if (!m) m = {
+      date: key.slice(METRICS_PREFIX.length),
+      totals: {}, verdicts: {}, sources: {},
+      latency_ms: { sum: 0, count: 0 },
+      errors: 0,
+    };
+    const ep = String(fields.endpoint || 'other').replace(/-/g, '_');
+    m.totals[ep] = (m.totals[ep] || 0) + 1;
+    if (fields.verdict) m.verdicts[fields.verdict] = (m.verdicts[fields.verdict] || 0) + 1;
+    if (fields.source) m.sources[fields.source] = (m.sources[fields.source] || 0) + 1;
+    if (typeof fields.elapsed_ms === 'number') {
+      m.latency_ms.sum += fields.elapsed_ms;
+      m.latency_ms.count += 1;
+    }
+    if (fields.error) m.errors = (m.errors || 0) + 1;
+    try {
+      await env.KV.put(key, JSON.stringify(m), { expirationTtl: METRICS_TTL_SECONDS });
+    } catch {}
+  };
+  if (ctx?.waitUntil) ctx.waitUntil(updater().catch(() => {}));
+  else updater().catch(() => {});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  /api/metrics — devuelve los counters de los últimos 14 días
+// ═══════════════════════════════════════════════════════════════════════════
+async function getMetrics(env, cors) {
+  if (!env.KV) {
+    return jsonResponse(
+      { ok: false, error: 'KV namespace no bindeado en este Worker.' },
+      503, cors,
+    );
+  }
+  const days = [];
+  const today = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today.getTime() - i * 24 * 3600 * 1000);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const series = [];
+  for (const date of days) {
+    let m;
+    try { m = await env.KV.get(METRICS_PREFIX + date, 'json'); }
+    catch { m = null; }
+    if (!m) continue;
+    series.push({
+      date,
+      totals: m.totals || {},
+      verdicts: m.verdicts || {},
+      sources: m.sources || {},
+      avg_latency_ms: m.latency_ms?.count
+        ? Math.round(m.latency_ms.sum / m.latency_ms.count)
+        : null,
+      errors: m.errors || 0,
+    });
+  }
+
+  // Agregado total de los 14 días para mostrar headline.
+  const summary = series.reduce((acc, d) => {
+    for (const [k, v] of Object.entries(d.totals)) acc.totals[k] = (acc.totals[k] || 0) + v;
+    for (const [k, v] of Object.entries(d.verdicts)) acc.verdicts[k] = (acc.verdicts[k] || 0) + v;
+    for (const [k, v] of Object.entries(d.sources)) acc.sources[k] = (acc.sources[k] || 0) + v;
+    acc.errors += d.errors;
+    if (d.avg_latency_ms != null) {
+      acc._lat_sum += d.avg_latency_ms;
+      acc._lat_n += 1;
+    }
+    return acc;
+  }, { totals: {}, verdicts: {}, sources: {}, errors: 0, _lat_sum: 0, _lat_n: 0 });
+
+  const cacheHits = (summary.sources['kv-cache'] || 0) +
+                    (summary.sources['human-approval-cache'] || 0);
+  const totalAi = summary.totals['ai_check'] || 0;
+  const cacheHitRate = totalAi > 0 ? Math.round((cacheHits / totalAi) * 100) : null;
+
+  return jsonResponse(
+    {
+      ok: true,
+      window_days: 14,
+      series: series.reverse(), // antiguo → nuevo
+      summary: {
+        totals: summary.totals,
+        verdicts: summary.verdicts,
+        sources: summary.sources,
+        errors: summary.errors,
+        avg_latency_ms: summary._lat_n ? Math.round(summary._lat_sum / summary._lat_n) : null,
+        cache_hit_rate_pct: cacheHitRate,
+      },
+    },
+    200, cors,
+  );
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
