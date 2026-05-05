@@ -19,6 +19,7 @@ import {
   uniqueAloneSurnames,
   commonAloneSurnames,
 } from '../blocklists/realMadrid.js';
+import { playerNameTokens, contextSensitiveSlurs } from '../blocklists/sensitiveContexts.js';
 import { phoneticEs, phoneticEn, phoneticFr, phoneticPt } from '../normalize.js';
 
 // Selecciona el transformador fonético según el idioma de la entrada.
@@ -207,5 +208,40 @@ export function staticCheck(variants) {
     }
   }
 
+  // ── Insulto a jugador (racism-context) ──────────────────────────────────
+  // Si el input contiene un token de jugador conocido + un término sensible
+  // de cualquier idioma, lo marcamos como racism-context con severity:high.
+  // Esto cubre "Vinicius mono", "Mbappé macaco", "Bellingham viejo", etc.,
+  // donde la combinación es ofensiva aunque cada palabra suelta sea ambigua.
+  detectPlayerInsultContext(variants, issues);
+
   return issues;
+}
+
+function detectPlayerInsultContext(variants, issues) {
+  const tokens = variants.tokens;
+  if (!tokens || tokens.length < 2) return;
+
+  // ¿Hay algún token que sea un jugador famoso?
+  const playerToken = tokens.find((t) => playerNameTokens.has(t));
+  if (!playerToken) return;
+
+  // ¿Hay algún token que sea un slur contextual en cualquier idioma?
+  for (const [lang, slurs] of Object.entries(contextSensitiveSlurs)) {
+    for (const t of tokens) {
+      if (t === playerToken) continue; // mismo token no cuenta
+      if (slurs.has(t)) {
+        issues.push({
+          layer: 'static',
+          lang,
+          category: 'racism-context',
+          match: `${playerToken} + ${t}`,
+          view: tokens.join(' '),
+          reason: `Insulto a jugador: combinación "${playerToken}" + "${t}" (${lang}). Inaceptable en el HALO.`,
+          severity: 'high',
+        });
+        return; // sólo emitimos un issue por input
+      }
+    }
+  }
 }

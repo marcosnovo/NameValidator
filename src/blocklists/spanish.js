@@ -150,6 +150,12 @@ export const spanishProfanity = [
   'puro pedo',
 
   // Más slurs y terms ofensivos
+  // ── Comparaciones animales racistas (inequívocas, sin ambigüedad)
+  // (Las formas ambiguas como "mono" se manejan en sensitiveContexts.js,
+  // sólo se bloquean si van junto a un nombre de jugador.)
+  'simio asqueroso', 'macaco asqueroso',
+  'macaco de mierda', 'mono de mierda', 'monodemierda',
+  'gorila de mierda', 'gorilademerda',
   'gabachos', 'gabacho de mierda', 'guiri de mierda',
   'cholo', 'cholos', 'inca de mierda',
   'pachuco', 'pachucos',

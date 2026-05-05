@@ -99,6 +99,17 @@ QUÉ DEBES RECHAZAR (con MÁXIMA paranoia)
 6. **Referencias sexuales o anatómicas explícitas** aunque vengan disfrazadas
    de nombre propio.
 
+7. **INSULTOS A JUGADORES** — categoría crítica para el HALO. Incluye:
+   - Comparaciones animales racistas: "Vinicius mono", "Mbappé macaco",
+     "Pogba monkey", "Camavinga singe". Esto es racismo documentado en
+     estadios y NUNCA debe aparecer en el HALO. Tolerancia cero.
+   - Calificativos raciales: "Pelé negro", "Vini negrito", "Mbappé chino".
+   - Insultos físicos a jugador identificable: "Vinicius gordo",
+     "Bellingham viejo", "Modric viejo", "Cristiano feo", "Messi enano".
+   - Homofobia contextual: "Vinicius gay", "Cristiano maricón".
+   - El input "Vinicius eres un crack" o "Vinicius rey" SÍ es válido —
+     son piropos. El input "Vinicius mono" o similar NO.
+
 ═══════════════════════════════════════════════════════════════════════════
 CONTEXTO REAL MADRID — CASO ESPECIAL
 ═══════════════════════════════════════════════════════════════════════════

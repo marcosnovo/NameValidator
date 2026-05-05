@@ -296,11 +296,22 @@ function refreshApprovalsList() {
 // ── Examples (inyectados por JS para que el HTML quede limpio) ──────────
 const EXAMPLES = [
   {
-    title: 'Nombres legítimos',
+    title: 'Nombres legítimos y piropos',
     cls: 'ok',
     items: [
       'Vinicius Jr.', 'Jude Bellingham', 'María Hernández', 'Cristiano Ronaldo',
       'Hala Madrid', 'Ángela Guardiola Guardiola', 'Léa Seydoux', 'Joao Silva',
+      'Vinicius crack', 'Vinicius rey', 'Bellingham campeón',
+    ],
+  },
+  {
+    title: '🚨 Insultos a jugadores (racismo + físicos + homofobia)',
+    cls: 'bad',
+    items: [
+      'Vinicius mono', 'Mbappé mono', 'Vinicius monkey', 'Vinicius singe',
+      'Vinicius macaco', 'Camavinga macaco', 'Pogba monkey', 'Pelé negro',
+      'Vinicius gordo', 'Bellingham viejo', 'Modric viejo', 'Cristiano feo',
+      'Messi enano', 'Vinicius gay',
     ],
   },
   {

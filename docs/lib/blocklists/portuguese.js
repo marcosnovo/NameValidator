@@ -73,7 +73,10 @@ export const portugueseProfanity = [
 
   // ── Drogas (referencias explícitas)
   'maconha', 'maconheiro', 'maconheira',
-  'cocaina', 'cocaina pura', 'crack', 'crackudo',
+  // 'crack' suelto NO va aquí — en castellano significa "fenómeno" (piropo
+  // a un buen jugador). Sólo bloqueamos sus variantes inequívocamente
+  // ligadas a la droga: 'crackhead', 'crack adicto', 'crackudo'.
+  'cocaina', 'cocaina pura', 'crackudo', 'cracker de droga',
   'lança', 'lanca-perfume',
   'mdma', 'extase', 'lsd',
   'usuario de drogas',
