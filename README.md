@@ -20,7 +20,7 @@ input ──▶ ① Format ──▶ ② Normalización ──▶ ③ Listas ES/
 |---|---|---|
 | **① Format** | Longitud, charset Unicode permitido | 0 |
 | **② Normalización** | NFD (sin acentos), lowercase, leet (`0→o`,`@→a`,`7→t`…), tokens, concatenado-sin-espacios, invertido | 0 |
-| **③ Listas estáticas** | ~1.000 entradas: vulgaridades + slurs + ~600 nombres-broma canónicos en ES/EN/FR (curados de blogs como *La sala de la curiosidad*, Topito, Wikipedia *Monsieur et Madame*, *Bart Simpson prank calls*, Mediavida, etc.) | 0 |
+| **③ Listas estáticas** | ~1.200 entradas: vulgaridades + slurs + ~600 nombres-broma canónicos en ES/EN/FR + jugadores rivales del Real Madrid (Barcelona, Atlético) con FULL-NAME matching para evitar bloquear apellidos legítimos como *Guardiola* o *Iniesta* en personas civiles | 0 |
 | **④ Sliding-window / concat** | Busca subcadenas en TODAS las vistas normalizadas (concatenada, deleeted, invertida). Atrapa *Aitor Tilla* → `aitortilla` | 0 |
 | **⑤ Capa semántica AI** | Claude Opus 4.7 con *adaptive thinking* + *effort:high*. Detecta dobles sentidos NUEVOS, homófonos, re-segmentaciones que las listas no cubren. Output estructurado vía `json_schema`. | tokens |
 
@@ -71,6 +71,40 @@ Luego abre [http://localhost:3000](http://localhost:3000).
 > Sin `ANTHROPIC_API_KEY` el sistema arranca igualmente, pero **sólo con las
 > capas estáticas** — no recomendado en producción porque los nombres-broma
 > novedosos se le escaparán.
+
+---
+
+## Despliegue en GitHub Pages (sin backend)
+
+La carpeta `docs/` contiene un bundle **estático y self-contained** que
+corre el validador 100% en el navegador. La capa AI (Claude) es opcional:
+el operador pega su API key en un panel de configuración y se guarda en
+`sessionStorage` (se borra al cerrar la pestaña).
+
+### Pasos para activarlo
+
+1. **Sincroniza `docs/`** desde `src/` (sólo si tocas `src/`):
+   ```bash
+   npm run build:docs
+   git add docs/lib && git commit -m "build: sync docs/lib"
+   ```
+2. **Push a main** (el contenido de `docs/` debe estar en main).
+3. En GitHub: **Settings → Pages**.
+4. Source: **Deploy from a branch**.
+5. Branch: **`main`**, Folder: **`/docs`**, *Save*.
+6. Espera 1-2 minutos. La página queda servida en
+   `https://<usuario>.github.io/<repo>/`.
+
+### Modo GitHub Pages: aviso de seguridad sobre la API key
+
+La capa AI requiere llamar a `api.anthropic.com` desde el navegador, lo
+cual implica exponer la API key al cliente. La página guarda la clave en
+`sessionStorage` con un aviso explícito y soporta borrarla con un botón.
+
+**Para producción real (HALO en explotación)** monta un proxy backend que
+guarde la key del lado servidor. El `docs/lib/aiCheck.js` está pensado
+para PRUEBAS Y DEMOS; el `server.js` de Node con `/api/validate` es lo
+adecuado para producción.
 
 ---
 
@@ -140,19 +174,34 @@ Pulsa cualquiera para validarlo.
 
 ```
 NameValidator/
-├── server.js                   # Express + endpoints
-├── src/
+├── server.js                   # Express + endpoints (dev local con backend)
+├── src/                        # ⭐ Código fuente canónico
 │   ├── validator.js            # Orquestador + agregador
 │   ├── normalize.js            # NFD, leet, concat, reversión, tokens
 │   ├── layers/
 │   │   ├── staticCheck.js      # Capas 1–4 (formato, listas, concat)
-│   │   └── aiCheck.js          # Capa 5 (Claude Opus 4.7)
+│   │   └── aiCheck.js          # Capa 5 (Claude Opus 4.7 vía fetch)
 │   └── blocklists/
 │       ├── spanish.js
 │       ├── english.js
-│       └── french.js
-└── public/                     # UI HTML/CSS/JS
+│       ├── french.js
+│       └── realMadrid.js       # Jugadores rivales (full-name) + chants
+├── public/                     # UI del modo backend (npm start → :3000)
+├── docs/                       # ⭐ Bundle GitHub Pages (self-contained)
+│   ├── index.html
+│   ├── styles.css
+│   ├── app.js
+│   └── lib/                    # Copia de src/ generada por build:docs
+└── scripts/
+    └── build-docs.mjs          # Sincroniza src/ → docs/lib/
 ```
+
+> **Caso crítico Real Madrid**: el static blocker NO bloquea apellidos
+> rivales sueltos (*Guardiola*, *Iniesta*, *Piqué*, *Puyol*…) — sólo
+> combinaciones nombre+apellido completas (*Pep Guardiola*, *Andrés
+> Iniesta*…). De este modo "Ángela Guardiola Guardiola" pasa, pero
+> "Pep Guardiola" no. Apellidos sueltos los juzga la capa AI con
+> contexto.
 
 ---
 

@@ -25,7 +25,10 @@ app.post('/api/validate', async (req, res) => {
     return res.status(400).json({ error: 'Campo "name" (string) requerido.' });
   }
   try {
-    const result = await validateName(name, { skipAI: !!skipAI });
+    const result = await validateName(name, {
+      skipAI: !!skipAI,
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
     res.json(result);
   } catch (err) {
     console.error('[validate] error:', err);
