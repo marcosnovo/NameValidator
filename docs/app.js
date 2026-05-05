@@ -611,13 +611,24 @@ function renderResult(result) {
 
   // Datos extraídos
   scanExtractedData.innerHTML = '';
+  const docTypeLabel = {
+    'TD3': 'Pasaporte (MRZ)',
+    'TD1': 'DNI/ID (MRZ)',
+    'TD2': 'Documento ICAO TD2',
+    'DNI': 'DNI español',
+    'NIE': 'NIE español',
+    'PASSPORT': 'Pasaporte',
+    'DRIVING_LICENSE': 'Carnet de conducir',
+    'unknown': '—',
+  }[result.documentType] || result.documentType;
   const rows = [
     ['Nombre completo', result.fullName, 'value-name'],
-    ['Tipo de documento', `${result.documentType ?? '?'} · ${result.issuingCountry ?? '?'}`],
+    ['Tipo de documento', `${docTypeLabel} · ${result.issuingCountry ?? '?'}`],
     ['Número', result.documentNumber || '—'],
     ['Fecha de nacimiento', result.birthDate?.iso ?? '—'],
     ['Fecha de expiración', result.expiryDate?.iso ?? '—'],
-    ['Sexo', result.mrz?.sex ?? '—'],
+    ['Sexo', result.mrz?.sex ?? result.passportFront?.sex ?? '—'],
+    ['Categorías (carnet)', result.categories?.join(', ') ?? '—'],
   ];
   for (const [label, value, cls] of rows) {
     if (!value || value === '—') continue;

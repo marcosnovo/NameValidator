@@ -5,6 +5,9 @@
 import { parseMrz, icaoChecksum } from '../docs/lib/ocr/mrz.js';
 import { validateDniNie, dniLetter, findDniNieInText } from '../docs/lib/ocr/dniSpain.js';
 import { parseDniSpainFront } from '../docs/lib/ocr/dniSpainFront.js';
+import { parsePassportFront } from '../docs/lib/ocr/passportFront.js';
+import { parseDrivingLicense } from '../docs/lib/ocr/drivingLicense.js';
+import { detectDocumentType } from '../docs/lib/ocr/identityLabels.js';
 
 let pass = 0, fail = 0;
 function assert(cond, name) {
@@ -142,6 +145,146 @@ assert(partial?.fullName === 'MARIA GARCIA LOPEZ', `DNI Front parcial (got: "${p
 // ── No es DNI (texto random) → null
 const notDni = parseDniSpainFront('Hola que tal\nMe llamo Juan\nEsto es texto random');
 assert(notDni === null, 'Texto random no es DNI → null');
+
+// ─────────────────────────────────────────────────────────────────────
+// PASAPORTE FRONTAL (multi-idioma)
+// ─────────────────────────────────────────────────────────────────────
+
+// Pasaporte español típico (etiquetas bilingües ES + EN)
+const passportEsText = `PASAPORTE / PASSPORT
+ESPAÑA / SPAIN
+Tipo / Type   Código / Code
+P             ESP
+Pasaporte N° / Passport No.
+PAB123456
+Apellidos / Surname
+GARCIA LOPEZ
+Nombre / Given names
+MARIA ELENA
+Nacionalidad / Nationality
+ESPAÑOLA / ESP
+Fecha de nacimiento / Date of birth
+15 03 1985
+Sexo / Sex
+F
+Lugar de nacimiento / Place of birth
+MADRID
+Fecha de expedición / Date of issue
+01 06 2020
+Fecha de caducidad / Date of expiry
+01 06 2030`;
+const pp = parsePassportFront(passportEsText);
+assert(!!pp, 'Pasaporte ES detectado');
+assert(pp?.surname === 'GARCIA LOPEZ', `Pasaporte surname (got: "${pp?.surname}")`);
+assert(pp?.given === 'MARIA ELENA', `Pasaporte given (got: "${pp?.given}")`);
+assert(pp?.fullName === 'MARIA ELENA GARCIA LOPEZ', `Pasaporte fullName`);
+assert(pp?.documentNumber === 'PAB123456', `Pasaporte docNum (got: "${pp?.documentNumber}")`);
+assert(pp?.nationality === 'ESP', `Pasaporte nationality (got: "${pp?.nationality}")`);
+assert(pp?.birthDate?.iso === '1985-03-15', `Pasaporte birthDate`);
+assert(pp?.expiryDate?.iso === '2030-06-01', `Pasaporte expiryDate`);
+assert(pp?.sex === 'F', `Pasaporte sex (got: "${pp?.sex}")`);
+
+// Pasaporte UK (sólo inglés)
+const passportUkText = `PASSPORT
+UNITED KINGDOM OF GREAT BRITAIN
+Type    Code   Passport No.
+P       GBR    123456789
+Surname
+SMITH
+Given names
+JOHN ROBERT
+Nationality
+BRITISH CITIZEN
+Date of birth
+12 NOV 1980
+Sex
+M
+Place of birth
+LONDON
+Date of issue
+05 04 2018
+Date of expiry
+05 04 2028`;
+const ppUk = parsePassportFront(passportUkText);
+assert(!!ppUk, 'Pasaporte UK detectado');
+assert(ppUk?.fullName === 'JOHN ROBERT SMITH', `Pasaporte UK fullName (got: "${ppUk?.fullName}")`);
+assert(ppUk?.documentNumber === '123456789', `Pasaporte UK docNum`);
+assert(ppUk?.birthDate?.iso === '1980-11-12', `Pasaporte UK birthDate (DD MMM YYYY)`);
+
+// Texto random no es pasaporte
+assert(parsePassportFront('hola que tal\nesto es random') === null, 'Texto random ≠ pasaporte');
+
+// ─────────────────────────────────────────────────────────────────────
+// CARNET DE CONDUCIR (UE armonizado + USA)
+// ─────────────────────────────────────────────────────────────────────
+
+// Carnet de conducir español (formato UE armonizado)
+const licenseEsText = `PERMISO DE CONDUCCIÓN
+ESPAÑA
+1. PEREZ MARTINEZ
+2. CARLOS
+3. 22-05-1990 SEVILLA
+4a. 10-01-2018
+4b. 10-01-2028
+4c. JEFATURA DE TRAFICO
+5. 12345678A
+9. AM A1 A2 A B
+JEFATURA PROVINCIAL DE TRAFICO`;
+const licEs = parseDrivingLicense(licenseEsText);
+assert(!!licEs, 'Carnet ES detectado');
+assert(licEs?.surname === 'PEREZ MARTINEZ', `Carnet surname (got: "${licEs?.surname}")`);
+assert(licEs?.given === 'CARLOS', `Carnet given (got: "${licEs?.given}")`);
+assert(licEs?.fullName === 'CARLOS PEREZ MARTINEZ', `Carnet fullName`);
+assert(licEs?.documentNumber === '12345678A', `Carnet docNum (got: "${licEs?.documentNumber}")`);
+assert(licEs?.birthDate?.iso === '1990-05-22', `Carnet birthDate`);
+assert(licEs?.expiryDate?.iso === '2028-01-10', `Carnet expiryDate`);
+assert(licEs?.categories.includes('B'), 'Carnet incluye categoría B');
+assert(licEs?.categories.includes('A'), 'Carnet incluye categoría A');
+
+// Carnet francés (UE armonizado en francés)
+const licenseFrText = `PERMIS DE CONDUIRE
+RÉPUBLIQUE FRANÇAISE
+1. DUPONT
+2. JEAN-MARIE
+3. 15.07.1978 PARIS
+4a. 03.05.2015
+4b. 03.05.2025
+4c. PREFECTURE DE POLICE PARIS
+5. 78AB12345
+9. B BE`;
+const licFr = parseDrivingLicense(licenseFrText);
+assert(!!licFr, 'Carnet FR detectado');
+assert(licFr?.fullName === 'JEAN-MARIE DUPONT', `Carnet FR fullName (got: "${licFr?.fullName}")`);
+assert(licFr?.documentNumber === '78AB12345', `Carnet FR docNum`);
+
+// Carnet USA (no UE — labels específicos)
+const licenseUsText = `DRIVER LICENSE
+CALIFORNIA USA
+DL: A1234567
+LN: SMITH
+FN: JOHN MICHAEL
+DOB: 03/15/1985
+EXP: 03/15/2030
+SEX: M
+CLASS: C`;
+const licUs = parseDrivingLicense(licenseUsText);
+// Para USA el matcher de labels puede o no funcionar — al menos detecta el tipo
+assert(!!licUs, 'Carnet USA detectado al menos como license');
+
+// ─────────────────────────────────────────────────────────────────────
+// DETECTOR DE TIPO DE DOCUMENTO
+// ─────────────────────────────────────────────────────────────────────
+const tDni = detectDocumentType('DOCUMENTO NACIONAL DE IDENTIDAD\nMINISTERIO DEL INTERIOR\nIDESP');
+assert(tDni.type === 'dniSpain', `Tipo detectado dniSpain (got: ${tDni.type})`);
+
+const tPp = detectDocumentType('PASSPORT\nUNITED KINGDOM');
+assert(tPp.type === 'passport', `Tipo detectado passport (got: ${tPp.type})`);
+
+const tLic = detectDocumentType('PERMISO DE CONDUCCIÓN ESPAÑA categorías');
+assert(tLic.type === 'drivingLicense', `Tipo detectado license (got: ${tLic.type})`);
+
+const tNone = detectDocumentType('hola que tal');
+assert(tNone.type === 'unknown', 'Tipo unknown para texto random');
 
 console.log(`\n${pass}/${pass+fail}`);
 if (fail) process.exit(1);

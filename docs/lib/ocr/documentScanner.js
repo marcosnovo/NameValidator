@@ -37,6 +37,9 @@ import { recognize, recognizeMrz } from './tesseractOcr.js';
 import { parseMrz } from './mrz.js';
 import { findDniNieInText, validateDniNie } from './dniSpain.js';
 import { parseDniSpainFront } from './dniSpainFront.js';
+import { parsePassportFront } from './passportFront.js';
+import { parseDrivingLicense } from './drivingLicense.js';
+import { detectDocumentType } from './identityLabels.js';
 
 export class DocumentScanner {
   /**
@@ -114,16 +117,18 @@ export class DocumentScanner {
       result.expiryDate = mrz.expiryDate;
     }
 
-    // ── PASO 3: Parser de la FRONTAL del DNI español (con LABELS).
-    // Es muy fiable cuando el DNI está bien encuadrado porque busca
-    // las etiquetas "PRIMER APELLIDO", "SEGUNDO APELLIDO", "NOMBRE",
-    // "DNI NÚM" en el texto OCR y extrae los valores.
+    // ── PASO 3: Detectar TIPO de documento por hints multi-idioma.
+    // Esto guía el orden de los parsers que probaremos.
+    onProgress({ stage: 'detect-type', progress: 0 });
+    const detection = detectDocumentType(ocr.text);
+    result.detectedType = detection;
+
+    // ── PASO 4: Parser de DNI ESPAÑOL (frontal con labels).
     onProgress({ stage: 'dni-front', progress: 0 });
     const front = parseDniSpainFront(ocr.text);
     if (front && front.fullName) {
       result.dniFront = front;
       if (!result.fullName) {
-        // El parser frontal manda si MRZ no hubo
         result.fullName = front.fullName;
         result.given = front.given;
         result.surname = [front.surname1, front.surname2].filter(Boolean).join(' ');
@@ -133,13 +138,49 @@ export class DocumentScanner {
         if (front.expiryDate) result.expiryDate = front.expiryDate;
         if (front.dniNumber) result.documentNumber = front.dniNumber;
       } else if (mrz && front.dniNumber && !result.documentNumber) {
-        // Complementar MRZ con número visible si MRZ no lo trae
         result.documentNumber = front.dniNumber;
       }
     }
 
-    // ── PASO 4: Búsqueda DNI/NIE genérica (regex global), por si la
-    // frontal no tenía labels visibles.
+    // ── PASO 5: Parser PASAPORTE FRONTAL (cuando MRZ no se leyó bien).
+    // Útil porque la MRZ falla con frecuencia (glare, foto torcida).
+    onProgress({ stage: 'passport-front', progress: 0 });
+    if (!result.fullName || (mrz && Object.values(mrz.checksums || {}).filter(Boolean).length < 2)) {
+      const passportFront = parsePassportFront(ocr.text);
+      if (passportFront && passportFront.fullName) {
+        result.passportFront = passportFront;
+        if (!result.fullName) {
+          result.fullName = passportFront.fullName;
+          result.given = passportFront.given;
+          result.surname = passportFront.surname;
+          result.documentType = 'PASSPORT';
+          result.issuingCountry = passportFront.nationality || result.issuingCountry;
+          if (passportFront.birthDate) result.birthDate = passportFront.birthDate;
+          if (passportFront.expiryDate) result.expiryDate = passportFront.expiryDate;
+          if (passportFront.documentNumber) result.documentNumber = passportFront.documentNumber;
+        }
+      }
+    }
+
+    // ── PASO 6: Parser CARNET DE CONDUCIR (UE armonizado / USA / UK).
+    onProgress({ stage: 'driving-license', progress: 0 });
+    if (!result.fullName) {
+      const license = parseDrivingLicense(ocr.text);
+      if (license && license.fullName) {
+        result.drivingLicense = license;
+        result.fullName = license.fullName;
+        result.given = license.given;
+        result.surname = license.surname;
+        result.documentType = 'DRIVING_LICENSE';
+        if (license.birthDate) result.birthDate = license.birthDate;
+        if (license.expiryDate) result.expiryDate = license.expiryDate;
+        if (license.documentNumber) result.documentNumber = license.documentNumber;
+        result.categories = license.categories;
+      }
+    }
+
+    // ── PASO 7: Búsqueda DNI/NIE genérica (regex global) — sólo para
+    // complementar el documentNumber si los pasos anteriores no lo dieron.
     onProgress({ stage: 'dni-spain', progress: 0 });
     const dniMatch = findDniNieInText(ocr.text);
     if (dniMatch) {
@@ -153,7 +194,7 @@ export class DocumentScanner {
       }
     }
 
-    // ── PASO 5: Si NADA de lo anterior funcionó, heurística genérica
+    // ── PASO 8: Heurística genérica como ÚLTIMO recurso
     if (!result.fullName) {
       const heuristic = heuristicNameExtraction(ocr.text);
       if (heuristic) {
@@ -163,11 +204,13 @@ export class DocumentScanner {
       }
     }
 
-    // ── PASO 6: Score de autenticidad
+    // ── PASO 9: Score de autenticidad combinado de TODAS las señales.
     result.authenticity = computeAuthenticityScore({
       mrz,
       dniNie: dniMatch,
       dniFront: front,
+      passportFront: result.passportFront,
+      drivingLicense: result.drivingLicense,
       ocrConfidence: ocr.confidence,
       result,
     });
@@ -251,18 +294,41 @@ function heuristicNameExtraction(text) {
  * threshold para "passed": ≥ 60.
  * threshold para "suspectedFake": < 30.
  */
-function computeAuthenticityScore({ mrz, dniNie, dniFront, ocrConfidence, result }) {
+function computeAuthenticityScore({
+  mrz, dniNie, dniFront, passportFront, drivingLicense, ocrConfidence, result,
+}) {
   const checks = {};
   let score = 0;
 
   // ── DNI FRONT (parser por labels) — buen indicio de DNI español auténtico
   if (dniFront) {
-    const pts = dniFront.score; // ya viene calculado por el parser
+    const pts = dniFront.score;
     score += pts;
     checks.dniFront = {
       labelsFound: dniFront.evidence?.labelsFound,
       dniHints: dniFront.evidence?.dniHints,
       validNumber: dniFront.valid,
+      pts: Math.round(pts),
+    };
+  }
+
+  // ── PASAPORTE FRONT (cuando MRZ no leyó bien)
+  if (passportFront) {
+    const pts = Math.min(passportFront.score, 50);
+    score += pts;
+    checks.passportFront = {
+      labelsFound: passportFront.evidence?.labelsFound,
+      pts: Math.round(pts),
+    };
+  }
+
+  // ── CARNET DE CONDUCIR (UE armonizado / labels)
+  if (drivingLicense) {
+    const pts = Math.min(drivingLicense.score, 60);
+    score += pts;
+    checks.drivingLicense = {
+      categories: drivingLicense.categories?.length ?? 0,
+      euFormat: drivingLicense.evidence?.numCategories >= 3,
       pts: Math.round(pts),
     };
   }
