@@ -1,0 +1,36 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify static checks (no install needed for tests)
+        run: |
+          node --check src/normalize.js
+          node --check src/validator.js
+          node --check src/layers/staticCheck.js
+          node --check src/layers/aiCheck.js
+          node --check src/blocklists/german.js
+          node --check src/blocklists/italian.js
+          node --check src/blocklists/historicalFigures.js
+          node --check proxy/cloudflare-worker.js
+          node --check docs/lib/ocr/aiVisionExtract.js
+          node --check docs/lib/ocr/documentScanner.js
+          node --check docs/app.js
+
+      - name: Run golden + adversarial test suite
+        run: npm test

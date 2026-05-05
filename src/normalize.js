@@ -201,6 +201,51 @@ function phoneticPt(s) {
     .replace(/ss/g, 's');
 }
 
+// Alemán. Equivalencias clave para evasión de blocklists:
+//   - ß → ss ("Scheiße" → "Scheisse" → ya en blocklist)
+//   - ä → ae, ö → oe, ü → ue (ya estará sin diacríticos en concatNoSpaces;
+//     pero algunos usuarios los teclean directos como "ae" — colapsamos
+//     "ae"→"a", "oe"→"o", "ue"→"u" para neutralizar variantes)
+//   - sch → sh (suena igual)
+//   - tsch → ch
+//   - tz → z (compresión común)
+//   - dt$ → t (mute final)
+//   - eh, ah, oh con vocal muda → vocal sola
+function phoneticDe(s) {
+  if (!s) return '';
+  return s
+    .replace(/ß/g, 'ss')
+    .replace(/sch/g, 'sh')
+    .replace(/tsch/g, 'ch')
+    .replace(/tz/g, 'z')
+    .replace(/(?<=[aeiou])h(?=[aeiou])/g, '')   // h intervocálica muda
+    .replace(/ae/g, 'a')
+    .replace(/oe/g, 'o')
+    .replace(/ue/g, 'u');
+}
+
+// Italiano. Equivalencias clave:
+//   - gli → li (sonido palatal — "figlio" → "filio")
+//   - gn → ñ→n ("gnocchi" → "nocchi" → "nochi")
+//   - gh+(e|i) → g (ahueca la i muda)
+//   - ch+(e|i) → k (ahueca la i muda)
+//   - sci/sce → shi/she (sibilante)
+//   - cc, gg, dobles → simples (haarmann tipo)
+//   - z al inicio → ts (sonido sordo)
+//   - quattro → kuattro
+function phoneticIt(s) {
+  if (!s) return '';
+  return s
+    .replace(/gli/g, 'li')
+    .replace(/gn/g, 'n')
+    .replace(/gh(?=[ei])/g, 'g')
+    .replace(/ch(?=[ei])/g, 'k')
+    .replace(/sci/g, 'shi')
+    .replace(/sce/g, 'she')
+    .replace(/qu/g, 'k')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
 // Genera todas las particiones por espacio y devuelve las re-segmentaciones
 // posibles deslizando el corte. Útil para que el motor de concat no dependa
 // de los espacios elegidos por el usuario.
@@ -229,6 +274,8 @@ function buildVariants(raw) {
   const phoneticEnView = phoneticEn(concatNoSpaces);
   const phoneticFrView = phoneticFr(concatNoSpaces);
   const phoneticPtView = phoneticPt(concatNoSpaces);
+  const phoneticDeView = phoneticDe(concatNoSpaces);
+  const phoneticItView = phoneticIt(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -246,6 +293,8 @@ function buildVariants(raw) {
     phoneticEn: phoneticEnView, //   ph→f, ck→k
     phoneticFr: phoneticFrView, //   qu→k, ç→s, ph→f
     phoneticPt: phoneticPtView, //   nh→n, lh→l, h muda, ç→s
+    phoneticDe: phoneticDeView, //   ß→ss, sch→sh, ae/oe/ue colapsadas
+    phoneticIt: phoneticItView, //   gli→li, gn→n, sci→shi, dobles→simples
     tokens,               // ['aitor', 'tilla']
   };
 }
@@ -260,4 +309,6 @@ export {
   phoneticEn,
   phoneticFr,
   phoneticPt,
+  phoneticDe,
+  phoneticIt,
 };

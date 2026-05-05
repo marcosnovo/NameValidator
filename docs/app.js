@@ -265,10 +265,31 @@ function approveManually(name) {
 
   renderHumanBox(name, /* re-render en estado actual */ verdictBig.textContent === 'PERMITIDO' ? 'ALLOWED' : verdictBig.textContent === 'REVISAR' ? 'REVIEW' : 'REJECTED');
   refreshApprovalsList();
+
+  // Propagar al KV global del Worker (best-effort) para que los demás
+  // operarios vean la aprobación. Si el proxy no está configurado o cae,
+  // mantenemos la aprobación local sin error.
+  propagateApprovalToProxy(name, reviewer, reason).catch(() => {});
+
   // Feedback visual
   const oldText = approveBtn.textContent;
   approveBtn.textContent = '✓ Registrada';
   setTimeout(() => { approveBtn.textContent = oldText; }, 1500);
+}
+
+async function propagateApprovalToProxy(name, reviewer, reason) {
+  const proxyUrl = getProxyUrl();
+  if (!proxyUrl) return;
+  const approveUrl = proxyUrl.replace(/\/api\/ai-check\/?$/, '') + '/api/approve';
+  await fetch(approveUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: name,
+      approver_id: reviewer || 'operator',
+      note: reason || '',
+    }),
+  });
 }
 
 function refreshApprovalsList() {
