@@ -36,6 +36,7 @@
 import { recognize, recognizeMrz } from './tesseractOcr.js';
 import { parseMrz } from './mrz.js';
 import { findDniNieInText, validateDniNie } from './dniSpain.js';
+import { parseDniSpainFront } from './dniSpainFront.js';
 
 export class DocumentScanner {
   /**
@@ -113,7 +114,32 @@ export class DocumentScanner {
       result.expiryDate = mrz.expiryDate;
     }
 
-    // ── PASO 3: ¿Hay DNI/NIE español visible (front del documento)?
+    // ── PASO 3: Parser de la FRONTAL del DNI español (con LABELS).
+    // Es muy fiable cuando el DNI está bien encuadrado porque busca
+    // las etiquetas "PRIMER APELLIDO", "SEGUNDO APELLIDO", "NOMBRE",
+    // "DNI NÚM" en el texto OCR y extrae los valores.
+    onProgress({ stage: 'dni-front', progress: 0 });
+    const front = parseDniSpainFront(ocr.text);
+    if (front && front.fullName) {
+      result.dniFront = front;
+      if (!result.fullName) {
+        // El parser frontal manda si MRZ no hubo
+        result.fullName = front.fullName;
+        result.given = front.given;
+        result.surname = [front.surname1, front.surname2].filter(Boolean).join(' ');
+        result.documentType = 'DNI';
+        result.issuingCountry = front.nationality || 'ESP';
+        if (front.birthDate) result.birthDate = front.birthDate;
+        if (front.expiryDate) result.expiryDate = front.expiryDate;
+        if (front.dniNumber) result.documentNumber = front.dniNumber;
+      } else if (mrz && front.dniNumber && !result.documentNumber) {
+        // Complementar MRZ con número visible si MRZ no lo trae
+        result.documentNumber = front.dniNumber;
+      }
+    }
+
+    // ── PASO 4: Búsqueda DNI/NIE genérica (regex global), por si la
+    // frontal no tenía labels visibles.
     onProgress({ stage: 'dni-spain', progress: 0 });
     const dniMatch = findDniNieInText(ocr.text);
     if (dniMatch) {
@@ -122,12 +148,12 @@ export class DocumentScanner {
         result.documentType = dniMatch.validation.type;
         result.documentNumber = dniMatch.validation.given;
         result.issuingCountry = 'ESP';
-      } else if (mrz && !mrz.documentNumber) {
+      } else if (!result.documentNumber) {
         result.documentNumber = dniMatch.validation.given;
       }
     }
 
-    // ── PASO 4: Si no hay MRZ ni DNI, extraer nombre por heurística
+    // ── PASO 5: Si NADA de lo anterior funcionó, heurística genérica
     if (!result.fullName) {
       const heuristic = heuristicNameExtraction(ocr.text);
       if (heuristic) {
@@ -137,10 +163,11 @@ export class DocumentScanner {
       }
     }
 
-    // ── PASO 5: Score de autenticidad
+    // ── PASO 6: Score de autenticidad
     result.authenticity = computeAuthenticityScore({
       mrz,
       dniNie: dniMatch,
+      dniFront: front,
       ocrConfidence: ocr.confidence,
       result,
     });
@@ -152,25 +179,59 @@ export class DocumentScanner {
 
 /**
  * Heurística de extracción de nombre cuando no hay MRZ ni DNI:
- * busca línea con apariencia de nombre (todo mayúsculas, longitud razonable,
- * sin números). Sólo el último recurso.
+ * último recurso. Busca líneas con apariencia de nombre y aplica filtros
+ * para evitar ruido OCR (firma, rúbrica, números, garabatos).
  */
 function heuristicNameExtraction(text) {
   if (!text) return null;
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  // Líneas que parecen nombre: 2-5 palabras, todas mayúsculas o capital,
-  // sin dígitos, longitud 6-50.
-  const candidates = lines.filter((l) => {
-    if (l.length < 6 || l.length > 50) return false;
-    if (/\d/.test(l)) return false;
-    const words = l.split(/\s+/);
-    if (words.length < 2 || words.length > 5) return false;
-    // Cada palabra debe parecer nombre (mayús inicial o todo mayús)
-    return words.every((w) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ'-]{1,}$/.test(w));
-  });
+  // Palabras-trampa frecuentes en DNI/pasaporte que NO son nombres
+  const TRAP_WORDS = /\b(documento|nacional|identidad|espana|españa|ministerio|interior|sexo|nacionalidad|fecha|nacimiento|valido|hasta|primer|segundo|apellido|nombre|firma|titular|surname|given|name|date|birth|sex|national|number|num|idesp|dni|nie|passport|pasaporte)\b/i;
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const seen = new Set(); // dedup
+  const candidates = [];
+
+  for (const l of lines) {
+    if (l.length < 3 || l.length > 50) continue;
+    if (/\d/.test(l)) continue;          // sin dígitos
+    if (TRAP_WORDS.test(l)) continue;    // sin labels
+    const cleaned = l.replace(/[^A-ZÁÉÍÓÚÑa-záéíóúñ' -]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (cleaned.length < 3) continue;
+    const words = cleaned.split(/\s+/);
+    if (words.length < 1 || words.length > 5) continue;
+    if (!words.every((w) => /^[A-ZÁÉÍÓÚÑa-záéíóúñ'-]{2,}$/.test(w))) continue;
+    const upper = cleaned.toUpperCase();
+    if (seen.has(upper)) continue;
+    seen.add(upper);
+    candidates.push(cleaned);
+  }
+
   if (!candidates.length) return null;
-  // Tomamos la primera (suele ser la más prominente)
-  const best = candidates[0];
+
+  // Estrategia: busca patrón típico de DNI español = 3 líneas seguidas
+  // con APELLIDO1, APELLIDO2, NOMBRE (cada uno es una línea independiente).
+  // Si encontramos 2-3 candidatos consecutivos, los combinamos.
+  if (candidates.length >= 3) {
+    // Asumimos: candidates[0]=APE1, [1]=APE2, [2]=NOMBRE
+    const ape1 = candidates[0];
+    const ape2 = candidates[1];
+    const nom = candidates[2];
+    // El nombre suele tener 1-3 palabras
+    if (nom.split(/\s+/).length <= 3) {
+      return {
+        fullName: `${nom} ${ape1} ${ape2}`,
+        given: nom,
+        surname: `${ape1} ${ape2}`,
+      };
+    }
+  }
+
+  // Si no, la primera "frase" más larga
+  const best = candidates.sort((a, b) => b.length - a.length)[0];
   const words = best.split(/\s+/);
   return {
     fullName: best,
@@ -190,9 +251,21 @@ function heuristicNameExtraction(text) {
  * threshold para "passed": ≥ 60.
  * threshold para "suspectedFake": < 30.
  */
-function computeAuthenticityScore({ mrz, dniNie, ocrConfidence, result }) {
+function computeAuthenticityScore({ mrz, dniNie, dniFront, ocrConfidence, result }) {
   const checks = {};
   let score = 0;
+
+  // ── DNI FRONT (parser por labels) — buen indicio de DNI español auténtico
+  if (dniFront) {
+    const pts = dniFront.score; // ya viene calculado por el parser
+    score += pts;
+    checks.dniFront = {
+      labelsFound: dniFront.evidence?.labelsFound,
+      dniHints: dniFront.evidence?.dniHints,
+      validNumber: dniFront.valid,
+      pts: Math.round(pts),
+    };
+  }
 
   // ── MRZ checksums (40 pts máx)
   if (mrz && mrz.checksums) {

@@ -4,6 +4,7 @@
 
 import { parseMrz, icaoChecksum } from '../docs/lib/ocr/mrz.js';
 import { validateDniNie, dniLetter, findDniNieInText } from '../docs/lib/ocr/dniSpain.js';
+import { parseDniSpainFront } from '../docs/lib/ocr/dniSpainFront.js';
 
 let pass = 0, fail = 0;
 function assert(cond, name) {
@@ -91,6 +92,56 @@ assert(td1Result?.givenNames === 'JUAN MIGUEL', `MRZ TD1 givenNames`);
 assert(td1Result?.checksums?.document === true, 'MRZ TD1 checksum doc');
 assert(td1Result?.checksums?.birth === true, 'MRZ TD1 checksum birth');
 assert(td1Result?.checksums?.expiry === true, 'MRZ TD1 checksum expiry');
+
+// ── DNI ESPAÑOL FRONT (parser por labels — el caso que fallaba al usuario)
+// OCR sintético basado en el DNI de muestra "JUAN ESPAÑOL ESPAÑOL"
+// (DNI 65004204V, IDESP AAA023112, nacido 10/01/1950, válido hasta 17/04/2018)
+const dniFrontText = `DOCUMENTO NACIONAL DE IDENTIDAD
+ESPAÑA
+PRIMER APELLIDO
+ESPAÑOL
+SEGUNDO APELLIDO
+ESPAÑOL
+NOMBRE
+JUAN
+SEXO    NACIONALIDAD
+M       ESP
+FECHA DE NACIMIENTO
+10 01 1950
+IDESP
+AAA023112
+VALIDO HASTA
+17 04 2018
+Juan Español
+DNI NUM.
+65004204V`;
+const front = parseDniSpainFront(dniFrontText);
+assert(!!front, 'DNI Front: detectado como DNI español');
+assert(front?.surname1 === 'ESPAÑOL', `DNI Front primer apellido (got: "${front?.surname1}")`);
+assert(front?.surname2 === 'ESPAÑOL', `DNI Front segundo apellido (got: "${front?.surname2}")`);
+assert(front?.given === 'JUAN', `DNI Front nombre (got: "${front?.given}")`);
+assert(front?.fullName === 'JUAN ESPAÑOL ESPAÑOL', `DNI Front fullName (got: "${front?.fullName}")`);
+assert(front?.dniNumber === '65004204V', `DNI Front número (got: "${front?.dniNumber}")`);
+assert(front?.valid === true, 'DNI Front letra válida');
+assert(front?.birthDate?.iso === '1950-01-10', `DNI Front fecha nac (got: "${front?.birthDate?.iso}")`);
+assert(front?.expiryDate?.iso === '2018-04-17', `DNI Front fecha expir (got: "${front?.expiryDate?.iso}")`);
+assert(front?.idesp === 'AAA023112', `DNI Front IDESP (got: "${front?.idesp}")`);
+
+// ── DNI Front con OCR PARCIAL (faltan algunos labels — que aún funcione)
+const partialText = `DOCUMENTO NACIONAL DE IDENTIDAD
+PRIMER APELLIDO
+GARCIA
+SEGUNDO APELLIDO
+LOPEZ
+NOMBRE
+MARIA
+12345678Z`;
+const partial = parseDniSpainFront(partialText);
+assert(partial?.fullName === 'MARIA GARCIA LOPEZ', `DNI Front parcial (got: "${partial?.fullName}")`);
+
+// ── No es DNI (texto random) → null
+const notDni = parseDniSpainFront('Hola que tal\nMe llamo Juan\nEsto es texto random');
+assert(notDni === null, 'Texto random no es DNI → null');
 
 console.log(`\n${pass}/${pass+fail}`);
 if (fail) process.exit(1);

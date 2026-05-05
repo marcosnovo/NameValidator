@@ -38,10 +38,16 @@
 
           <div class="scan-stage" id="scan-stage-camera">
             <p class="scan-hint">
-              Coloca el documento bien encuadrado y enfocado. Funciona con
-              <strong>DNI/NIE español</strong>, <strong>pasaportes con MRZ</strong> (200+ países)
-              y otros documentos identificativos.
+              Funciona con <strong>DNI/NIE español</strong>,
+              <strong>pasaportes con MRZ</strong> (200+ países) y otros
+              documentos identificativos.
             </p>
+            <ul class="scan-tips">
+              <li>📐 Encuadra <strong>sólo el documento</strong> dentro del recuadro amarillo</li>
+              <li>💡 Buena iluminación, sin reflejos directos sobre la foto</li>
+              <li>🔍 Mantén el móvil quieto y enfocado hasta capturar</li>
+              <li>📱 Si haces foto de una pantalla, baja el brillo para evitar moiré</li>
+            </ul>
             <div class="camera-frame">
               <video id="scan-video" autoplay muted playsinline></video>
               <div class="frame-guide" aria-hidden="true"></div>
@@ -55,8 +61,7 @@
             </div>
             <p class="warn-line scan-warn">
               🔒 La imagen se procesa <strong>100% en tu navegador</strong>.
-              No se envía a ningún servidor. Los datos extraídos se quedan
-              en este dispositivo.
+              No se envía a ningún servidor.
             </p>
           </div>
 

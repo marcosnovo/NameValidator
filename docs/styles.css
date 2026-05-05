@@ -492,11 +492,24 @@ footer a:hover { text-decoration: underline; }
 .modal-head h3 { margin: 0; font-size: 1.1rem; }
 
 .scan-hint {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   font-size: 0.88rem;
   color: var(--fg-dim);
   line-height: 1.45;
 }
+.scan-tips {
+  margin: 0 0 12px;
+  padding: 10px 12px 10px 14px;
+  background: rgba(251, 191, 36, 0.06);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 8px;
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+  line-height: 1.5;
+}
+.scan-tips li { margin: 2px 0; }
+.scan-tips strong { color: var(--fg); }
 
 .camera-frame {
   position: relative;
