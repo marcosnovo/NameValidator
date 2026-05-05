@@ -224,6 +224,63 @@ function phoneticDe(s) {
     .replace(/ue/g, 'u');
 }
 
+// Ruso transliterado. Pillamos variantes de transliteración comunes:
+//   - kh ↔ h ↔ x ("Khrushchev" / "Hrushchev" / "Xrushchev")
+//   - ch ↔ tch ("Tchaikovsky" / "Chaikovsky")
+//   - y/i confusión final (común en transliteraciones)
+//   - sh, zh sonidos específicos del cirílico
+//   - dobles colapsadas
+function phoneticRu(s) {
+  if (!s) return '';
+  return s
+    .replace(/kh/g, 'h')
+    .replace(/x/g, 'h')          // Xrushchev → Hrushchev
+    .replace(/tch/g, 'ch')
+    .replace(/sch/g, 'sh')
+    .replace(/zh/g, 'j')
+    .replace(/yj$/g, 'i')        // -yj final → -i
+    .replace(/yi$/g, 'i')
+    .replace(/iy$/g, 'i')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Polaco. Equivalencias clave:
+//   - cz → ch (suena como inglés "ch")
+//   - sz → sh
+//   - rz → zh ("Rzeszów" suena con zh)
+//   - dz → z (palatalización suave)
+//   - ł ya está convertida a l por stripDiacritics
+//   - ą → on, ę → en (no cubrimos exhaustivo, ya pasa por NFD)
+function phoneticPl(s) {
+  if (!s) return '';
+  return s
+    .replace(/cz/g, 'ch')
+    .replace(/sz/g, 'sh')
+    .replace(/rz/g, 'zh')
+    .replace(/dz/g, 'z')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Árabe transliterado. Pillamos variantes muy comunes en "Arabizi":
+//   - 3 → a (sustitución típica de la letra ع ain)
+//   - 7 → h (sustitución típica de la letra ح)
+//   - 9 → q (sustitución típica de la letra ق)
+//   - kh ↔ x ↔ k ("Khaled" / "Xaled" / "Kaled")
+//   - aa/ee/oo dobladas → vocal simple
+//   - dobles colapsadas
+function phoneticAr(s) {
+  if (!s) return '';
+  return s
+    .replace(/3/g, 'a')        // 3in → a
+    .replace(/7/g, 'h')        // ha
+    .replace(/9/g, 'q')        // qaf
+    .replace(/kh/g, 'h')
+    .replace(/aa/g, 'a')
+    .replace(/ee/g, 'e')
+    .replace(/oo/g, 'u')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
 // Italiano. Equivalencias clave:
 //   - gli → li (sonido palatal — "figlio" → "filio")
 //   - gn → ñ→n ("gnocchi" → "nocchi" → "nochi")
@@ -276,6 +333,9 @@ function buildVariants(raw) {
   const phoneticPtView = phoneticPt(concatNoSpaces);
   const phoneticDeView = phoneticDe(concatNoSpaces);
   const phoneticItView = phoneticIt(concatNoSpaces);
+  const phoneticRuView = phoneticRu(concatNoSpaces);
+  const phoneticPlView = phoneticPl(concatNoSpaces);
+  const phoneticArView = phoneticAr(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -295,6 +355,9 @@ function buildVariants(raw) {
     phoneticPt: phoneticPtView, //   nh→n, lh→l, h muda, ç→s
     phoneticDe: phoneticDeView, //   ß→ss, sch→sh, ae/oe/ue colapsadas
     phoneticIt: phoneticItView, //   gli→li, gn→n, sci→shi, dobles→simples
+    phoneticRu: phoneticRuView, //   kh→h→x, tch→ch, sh, zh→j
+    phoneticPl: phoneticPlView, //   cz→ch, sz→sh, rz→zh, dz→z
+    phoneticAr: phoneticArView, //   3→a, 7→h, 9→q (Arabizi)
     tokens,               // ['aitor', 'tilla']
   };
 }
@@ -311,4 +374,7 @@ export {
   phoneticPt,
   phoneticDe,
   phoneticIt,
+  phoneticRu,
+  phoneticPl,
+  phoneticAr,
 };

@@ -26,7 +26,13 @@ jobs:
           node --check src/layers/aiCheck.js
           node --check src/blocklists/german.js
           node --check src/blocklists/italian.js
+          node --check src/blocklists/russian.js
+          node --check src/blocklists/polish.js
+          node --check src/blocklists/arabic.js
           node --check src/blocklists/historicalFigures.js
+          node --check src/contexts/index.js
+          node --check src/contexts/realMadrid.js
+          node --check src/contexts/fcBarcelona.js
           node --check proxy/cloudflare-worker.js
           node --check docs/lib/ocr/aiVisionExtract.js
           node --check docs/lib/ocr/documentScanner.js
