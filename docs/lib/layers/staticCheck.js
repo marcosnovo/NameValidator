@@ -13,6 +13,10 @@ import { spanishProfanity, spanishJokeNames, spanishExactOnly } from '../blockli
 import { englishProfanity, englishJokeNames, englishExactOnly } from '../blocklists/english.js';
 import { frenchProfanity, frenchJokeNames, frenchExactOnly } from '../blocklists/french.js';
 import { portugueseProfanity, portugueseJokeNames, portugueseExactOnly } from '../blocklists/portuguese.js';
+import { spanishExternal } from '../blocklists/external/es.js';
+import { englishExternal } from '../blocklists/external/en.js';
+import { frenchExternal } from '../blocklists/external/fr.js';
+import { portugueseExternal } from '../blocklists/external/pt.js';
 import {
   rivalPlayerFullNames,
   antiMadridChants,
@@ -20,7 +24,10 @@ import {
   commonAloneSurnames,
 } from '../blocklists/realMadrid.js';
 import { playerNameTokens, contextSensitiveSlurs } from '../blocklists/sensitiveContexts.js';
+import { applyScunthorpeWhitelist } from '../blocklists/scunthorpeWhitelist.js';
 import { phoneticEs, phoneticEn, phoneticFr, phoneticPt } from '../normalize.js';
+import { buildAhoCorasick } from '../lib/ahoCorasick.js';
+import { fuzzyContains } from '../lib/fuzzyMatch.js';
 
 // Selecciona el transformador fonético según el idioma de la entrada.
 const PHONETIC_FN = {
@@ -45,6 +52,85 @@ const realMadridForms = [
   ...antiMadridChants.map(([form, why]) => ({ form, why, category: 'anti-madrid', phonetic: phoneticEs(form) })),
 ];
 
+// ─── Aho-Corasick: pre-construido al cargar el módulo ─────────────────────
+//
+// Sustituimos los O(N×M) substring loops por un autómata O(n+m+matches).
+// Construimos UN AC por idioma con la unión de profanity + external,
+// MÁS un AC dedicado para joke names y otro para Real Madrid forms (que
+// llevan razón legible distinta).
+//
+// Sólo metemos los términos NO marcados como exact-only (esos van por el
+// path de tokens) y filtramos los que tienen espacios (van por path de
+// frase, ya que el concat los aplana).
+function buildLangAC(profanity, external, exactSet) {
+  return buildAhoCorasick(
+    [...profanity, ...external]
+      .filter((w) => typeof w === 'string')
+      .filter((w) => !exactSet.has(w))
+      .filter((w) => w.length >= 3)
+      .map((w) => [w.replace(/\s/g, ''), w])
+  );
+}
+
+const acES = buildLangAC(spanishProfanity, spanishExternal, spanishExactOnly);
+const acEN = buildLangAC(englishProfanity, englishExternal, englishExactOnly);
+const acFR = buildLangAC(frenchProfanity, frenchExternal, frenchExactOnly);
+const acPT = buildLangAC(portugueseProfanity, portugueseExternal, portugueseExactOnly);
+
+// AC fonético (mismas listas pero con cada palabra transformada)
+const acESPhonetic = buildAhoCorasick(
+  [...spanishProfanity, ...spanishExternal]
+    .filter((w) => typeof w === 'string' && !spanishExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticEs(w.replace(/\s/g, '')), w])
+);
+const acENPhonetic = buildAhoCorasick(
+  [...englishProfanity, ...englishExternal]
+    .filter((w) => typeof w === 'string' && !englishExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticEn(w.replace(/\s/g, '')), w])
+);
+const acFRPhonetic = buildAhoCorasick(
+  [...frenchProfanity, ...frenchExternal]
+    .filter((w) => typeof w === 'string' && !frenchExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticFr(w.replace(/\s/g, '')), w])
+);
+const acPTPhonetic = buildAhoCorasick(
+  [...portugueseProfanity, ...portugueseExternal]
+    .filter((w) => typeof w === 'string' && !portugueseExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticPt(w.replace(/\s/g, '')), w])
+);
+
+const acByLang = { es: acES, en: acEN, fr: acFR, pt: acPT };
+const acPhoneticByLang = { es: acESPhonetic, en: acENPhonetic, fr: acFRPhonetic, pt: acPTPhonetic };
+
+// AC para joke names (todos los idiomas en uno, con metadata del idioma)
+const acJokes = buildAhoCorasick(
+  jokeForms.map(({ form, why, lang }) => [form.replace(/\s/g, ''), { why, lang }])
+);
+const acJokesPhonetic = buildAhoCorasick(
+  jokeForms.map(({ form, why, lang, phonetic }) => [
+    phonetic || form.replace(/\s/g, ''),
+    { why, lang },
+  ])
+);
+
+// AC para Real Madrid: full-name combinations + chants
+const acRealMadrid = buildAhoCorasick(
+  realMadridForms.map(({ form, why, category }) => [form.replace(/\s/g, ''), { why, category }])
+);
+const acRealMadridPhonetic = buildAhoCorasick(
+  realMadridForms.map(({ form, why, category, phonetic }) => [
+    phonetic || form.replace(/\s/g, ''),
+    { why, category },
+  ])
+);
+
+// Profanity precomputed para fuzzy matching (palabras "core" >= 5 chars,
+// vulgaridades inequívocas — no joke names, no real madrid)
+const fuzzyTargetsES = [...spanishProfanity, ...spanishExternal]
+  .filter((w) => typeof w === 'string' && !spanishExactOnly.has(w))
+  .filter((w) => !w.includes(' ') && w.length >= 5)
+  .slice(0, 200); // top 200 para mantener latencia razonable
+
 const aloneRivalSurnames = [
   ...uniqueAloneSurnames.map(([form, why]) => ({ form, why, severity: 'high' })),
   ...commonAloneSurnames.map(([form, why]) => ({ form, why, severity: 'medium' })),
@@ -68,38 +154,10 @@ function findHitAsSubstring(haystacks, needle) {
 }
 
 function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
-  const haystacks = [
-    variants.concatNoSpaces,
-    variants.dedupedConcat,
-    variants.reversedConcat,
-    variants.deLeeted,
-    variants.noDiacritics,
-  ];
-
-  // Vista fonética del input correspondiente al idioma.
-  const phoneticInputView = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
-  const phoneticFn = PHONETIC_FN[lang];
-
-  for (const word of list) {
-    const exactOnly = exactOnlySet.has(word);
-    const cleaned = word.replace(/\s/g, '');
-    let hit = null;
-
-    if (exactOnly) {
-      hit = findHitInTokens(variants.tokens, word);
-    } else {
-      // 1. Match directo en las vistas crudas
-      hit = findHitAsSubstring(haystacks, cleaned);
-      // 2. Match fonético: aplica la transformación del idioma a la palabra
-      //    y busca en la vista fonética del input
-      if (!hit && phoneticFn && phoneticInputView) {
-        const phoneticWord = phoneticFn(cleaned);
-        if (phoneticWord && phoneticInputView.includes(phoneticWord)) {
-          hit = phoneticInputView;
-        }
-      }
-    }
-
+  // ── PASO 1: Tokens — palabras exactas (e.g. 'ano' suelto, no como
+  // subcadena). Esto NO usa Scunthorpe porque ya es match a token aislado.
+  for (const word of exactOnlySet) {
+    const hit = findHitInTokens(variants.tokens, word);
     if (hit) {
       issues.push({
         layer: 'static',
@@ -112,21 +170,61 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
     }
   }
 
-  // Pase para palabras de exact-only que NO están en la lista principal
-  // (ej. 'ano': no la metemos en spanishProfanity para no chocar con "Ana",
-  //  pero sí queremos pillarla como token aislado).
-  for (const word of exactOnlySet) {
-    if (list.includes(word)) continue;
-    const hit = findHitInTokens(variants.tokens, word);
-    if (hit) {
+  // ── PASO 2: Aho-Corasick sobre vistas raw + Scunthorpe whitelist
+  // Aplicamos la whitelist Scunthorpe sobre cada vista para "perforar" las
+  // palabras legítimas con substring vulgar (Cumbria, classic, esparrago…)
+  // ANTES de buscar profanidad. Así "Cumbria López" no matchea 'cum'.
+  const ac = acByLang[lang];
+  const acPhonetic = acPhoneticByLang[lang];
+
+  const rawHaystacks = [
+    variants.concatNoSpaces,
+    variants.dedupedConcat,
+    variants.reversedConcat,
+    variants.deLeeted,
+    variants.noDiacritics,
+  ];
+
+  let foundInRaw = false;
+  for (const view of rawHaystacks) {
+    if (!view) continue;
+    const punched = applyScunthorpeWhitelist(view);
+    const m = ac.firstMatch(punched);
+    if (m) {
       issues.push({
         layer: 'static',
         lang,
         category: 'profanity',
-        match: word,
-        view: hit,
+        match: m.meta,
+        view,
         severity: 'high',
       });
+      foundInRaw = true;
+      break;
+    }
+  }
+
+  // ── PASO 3: Aho-Corasick fonético — sólo si raw no matcheó.
+  // Pasamos la función fonética para que la whitelist Scunthorpe se
+  // transforme también (e.g. "cockburn" se vuelve "coburn" y neutraliza
+  // el match "cok" derivado de "cock").
+  if (!foundInRaw && acPhonetic) {
+    const phoneticView = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
+    const phoneticFn = PHONETIC_FN[lang];
+    if (phoneticView) {
+      const punched = applyScunthorpeWhitelist(phoneticView, phoneticFn);
+      const m = acPhonetic.firstMatch(punched);
+      if (m) {
+        issues.push({
+          layer: 'static',
+          lang,
+          category: 'profanity',
+          match: m.meta,
+          view: phoneticView,
+          reason: `Match fonético (${lang})`,
+          severity: 'high',
+        });
+      }
     }
   }
 }
@@ -140,50 +238,50 @@ export function staticCheck(variants) {
   checkProfanityList(frenchProfanity,     frenchExactOnly,     'fr', variants, issues);
   checkProfanityList(portugueseProfanity, portugueseExactOnly, 'pt', variants, issues);
 
-  // ── Nombres-broma conocidos con matching directo Y fonético ────────────
-  for (const { form, why, lang, phonetic } of jokeForms) {
-    const cleaned = form.replace(/\s/g, '');
-
-    const directHit =
-      variants.concatNoSpaces.includes(cleaned) ||
-      variants.dedupedConcat.includes(cleaned);
-
-    const phoneticView = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
-    const phoneticHit =
-      phonetic &&
-      phoneticView &&
-      phoneticView.includes(phonetic);
-
-    if (directHit || phoneticHit) {
+  // ── Nombres-broma conocidos — Aho-Corasick directo + fonético ───────────
+  // O(n+matches) en vez de iterar 700 patrones. Sin Scunthorpe whitelist
+  // porque los joke names son frases construidas, no palabras civiles.
+  {
+    const directView = variants.concatNoSpaces;
+    let m = acJokes.firstMatch(directView);
+    if (!m) {
+      // Match fonético — buscamos en cada vista fonética con el AC del
+      // idioma original del nombre (los joke names ES → phoneticEs, etc.)
+      // Como acJokesPhonetic mezcla idiomas, intentamos en cada vista.
+      for (const lang of ['es', 'en', 'fr', 'pt']) {
+        const view = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
+        if (!view) continue;
+        m = acJokesPhonetic.firstMatch(view);
+        if (m && m.meta.lang === lang) break;
+        m = null;
+      }
+    }
+    if (m) {
       issues.push({
         layer: 'static',
-        lang,
+        lang: m.meta.lang,
         category: 'joke-name',
-        match: form,
-        view: variants.concatNoSpaces,
-        reason: why + (phoneticHit && !directHit ? ' (match fonético)' : ''),
+        match: m.pattern,
+        view: directView,
+        reason: m.meta.why,
         severity: 'high',
       });
     }
   }
 
-  // ── Real Madrid: full-name combinations + chants ────────────────────────
-  for (const { form, why, category, phonetic } of realMadridForms) {
-    const cleaned = form.replace(/\s/g, '');
-    const directHit =
-      variants.concatNoSpaces.includes(cleaned) ||
-      variants.dedupedConcat.includes(cleaned);
-    const phoneticHit =
-      phonetic && variants.phoneticEs.includes(phonetic);
-
-    if (directHit || phoneticHit) {
+  // ── Real Madrid: full-name combinations + chants — Aho-Corasick ────────
+  {
+    let m = acRealMadrid.firstMatch(variants.concatNoSpaces);
+    if (!m) m = acRealMadrid.firstMatch(variants.dedupedConcat);
+    if (!m) m = acRealMadridPhonetic.firstMatch(variants.phoneticEs);
+    if (m) {
       issues.push({
         layer: 'static',
         lang: 'es',
-        category,
-        match: form,
+        category: m.meta.category,
+        match: m.pattern,
         view: variants.concatNoSpaces,
-        reason: why,
+        reason: m.meta.why,
         severity: 'high',
       });
     }
