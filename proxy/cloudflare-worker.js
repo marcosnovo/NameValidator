@@ -25,6 +25,24 @@
 //   wrangler login
 //   wrangler secret put ANTHROPIC_API_KEY  # te pide pegar la key
 //   wrangler deploy
+//
+// ──── CACHE + APROBACIONES GLOBALES (KV) — opcional, MUY recomendado ──────
+//   Activa la cache de 1h sobre /api/ai-check (~70% hit rate en un Tour) y
+//   propaga aprobaciones humanas a todos los operarios.
+//
+//   Dashboard:
+//     1. Workers & Pages → Storage → KV → Create namespace "halo-cache"
+//     2. Tu Worker → Settings → Variables → KV Namespace Bindings → Add
+//        Variable name: KV
+//        Namespace:     halo-cache
+//
+//   Wrangler:
+//     wrangler kv namespace create halo-cache
+//     # Pega el id devuelto en wrangler.toml como [[kv_namespaces]] binding="KV"
+//     wrangler deploy
+//
+//   El Worker es fail-soft: si KV no está bindeado, sigue funcionando sin
+//   cache ni aprobaciones globales (el frontend mantiene su localStorage).
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SYSTEM_PROMPT = `Eres un sistema de moderación de nombres para el HALO del Santiago Bernabéu —
@@ -117,9 +135,26 @@ const RESPONSE_SCHEMA = {
   additionalProperties: false,
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  Cache + aprobaciones globales — Cloudflare KV
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Para activar:
+//   1. Workers & Pages → Storage → KV → Create namespace "halo-cache"
+//   2. Workers & Pages → tu Worker → Settings → Variables → KV Namespace
+//      Bindings → Add: variable name `KV`, namespace `halo-cache`.
+//
+// Si KV no está bindeado, el Worker sigue funcionando (sin cache, sin
+// aprobaciones). Es fail-soft: nunca rompe la respuesta.
+
+const CACHE_TTL_SECONDS = 60 * 60;           // 1h para resultados de IA
+const APPROVAL_TTL_SECONDS = 60 * 60 * 24 * 30; // 30d para aprobaciones humanas
+const CACHE_PREFIX = 'aicheck:';
+const APPROVAL_PREFIX = 'approve:';
+
 // ─── Worker entrypoint ─────────────────────────────────────────────────────
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const cors = buildCorsHeaders(env.CORS_ORIGINS, request.headers.get('Origin'));
 
     // Preflight CORS
@@ -135,9 +170,10 @@ export default {
         {
           ok: true,
           ai_layer: !!env.ANTHROPIC_API_KEY,
+          kv_layer: !!env.KV,                // ← nuevo: cache + aprobaciones
           model: 'claude-opus-4-7',          // /api/ai-check (validación)
           vision_model: 'claude-sonnet-4-6', // /api/scan-document (OCR)
-          endpoints: ['/api/ai-check', '/api/scan-document'],
+          endpoints: ['/api/ai-check', '/api/scan-document', '/api/approve'],
           mode: 'cloudflare-worker',
         },
         200,
@@ -147,55 +183,264 @@ export default {
 
     if (request.method !== 'POST') {
       return jsonResponse(
-        { error: 'Use POST /api/ai-check o POST /api/scan-document' },
+        { error: 'Use POST /api/ai-check, /api/scan-document, o /api/approve' },
         405,
         cors,
       );
     }
 
-    // ── Endpoint NUEVO: extracción de documentos identificativos vía
-    //    Claude Vision. Acepta imagen base64 y devuelve JSON estructurado.
+    // ── Endpoint: extracción de documentos identificativos vía Claude Vision
     if (url.pathname === '/api/scan-document') {
       return scanDocument(request, env, cors);
     }
 
+    // ── Endpoint NUEVO: aprobaciones globales del operario.
+    //    El frontend lo invoca cuando el operario aprueba manualmente
+    //    un nombre marcado como REVIEW. La aprobación se propaga a TODOS
+    //    los operarios vía KV.
+    if (url.pathname === '/api/approve') {
+      return recordApproval(request, env, cors, ctx);
+    }
+
     if (url.pathname !== '/api/ai-check') {
       return jsonResponse(
-        { error: 'Use POST /api/ai-check o POST /api/scan-document' },
+        { error: 'Use POST /api/ai-check, /api/scan-document, o /api/approve' },
         405,
         cors,
       );
     }
 
-    if (!env.ANTHROPIC_API_KEY) {
-      return jsonResponse(
-        {
-          enabled: false,
-          reason:
-            'ANTHROPIC_API_KEY no configurada en este Worker. Añádela en ' +
-            'Settings → Variables and Secrets como Secret.',
-        },
-        500,
-        cors,
-      );
-    }
-
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return jsonResponse({ error: 'JSON inválido' }, 400, cors);
-    }
-
-    const input = body?.input;
-    if (typeof input !== 'string' || !input.trim()) {
-      return jsonResponse({ error: 'Campo "input" (string) requerido' }, 400, cors);
-    }
-
-    const result = await callAnthropic(input, env.ANTHROPIC_API_KEY);
-    return jsonResponse(result, 200, cors);
+    return aiCheck(request, env, cors, ctx);
   },
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  /api/ai-check con cache KV + aprobaciones globales + métricas
+// ═══════════════════════════════════════════════════════════════════════════
+async function aiCheck(request, env, cors, ctx) {
+  const t0 = Date.now();
+
+  if (!env.ANTHROPIC_API_KEY) {
+    return jsonResponse(
+      {
+        enabled: false,
+        reason:
+          'ANTHROPIC_API_KEY no configurada en este Worker. Añádela en ' +
+          'Settings → Variables and Secrets como Secret.',
+      },
+      500,
+      cors,
+    );
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ error: 'JSON inválido' }, 400, cors); }
+
+  const input = body?.input;
+  if (typeof input !== 'string' || !input.trim()) {
+    return jsonResponse({ error: 'Campo "input" (string) requerido' }, 400, cors);
+  }
+
+  // Hash determinista del input normalizado (lower + sin acentos + sin
+  // espacios redundantes). Mismo nombre → misma clave de cache, sin
+  // importar capitalización o espaciado.
+  const hashKey = await canonicalHash(input);
+
+  // ── PASO A: ¿Hay aprobación humana previa? Si sí, devolvemos CLEAN
+  //           con la razón "previously approved by operator".
+  if (env.KV) {
+    try {
+      const approval = await env.KV.get(APPROVAL_PREFIX + hashKey, 'json');
+      if (approval && approval.approved) {
+        const elapsed = Date.now() - t0;
+        const result = {
+          enabled: true,
+          verdict: 'CLEAN',
+          confidence_offensive: 0,
+          languages_with_issue: [],
+          categories: [],
+          phonetic_reading: '',
+          rationale:
+            `Aprobado previamente por operario (${approval.approver_id ?? 'humano'} · ` +
+            `${approval.timestamp ?? ''}). Marcado como CLEAN.`,
+          source: 'human-approval-cache',
+          usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 },
+        };
+        logMetrics(env, ctx, {
+          endpoint: 'ai-check',
+          input_len: input.length,
+          verdict: 'CLEAN',
+          source: 'human-approval-cache',
+          elapsed_ms: elapsed,
+        });
+        return jsonResponse(result, 200, cors);
+      }
+    } catch (err) {
+      // KV temporalmente caído — no rompemos el flujo, seguimos a IA.
+    }
+  }
+
+  // ── PASO B: ¿Hay resultado cacheado de Anthropic? TTL 1h.
+  if (env.KV) {
+    try {
+      const cached = await env.KV.get(CACHE_PREFIX + hashKey, 'json');
+      if (cached) {
+        const elapsed = Date.now() - t0;
+        cached.source = 'kv-cache';
+        cached.cache_hit = true;
+        logMetrics(env, ctx, {
+          endpoint: 'ai-check',
+          input_len: input.length,
+          verdict: cached.verdict,
+          source: 'kv-cache',
+          elapsed_ms: elapsed,
+        });
+        return jsonResponse(cached, 200, cors);
+      }
+    } catch {
+      // ignoramos errores de KV
+    }
+  }
+
+  // ── PASO C: Llamada real a Anthropic.
+  const result = await callAnthropic(input, env.ANTHROPIC_API_KEY);
+  const elapsed = Date.now() - t0;
+
+  // Sólo cacheamos respuestas exitosas y que tengan veredicto. Errores de red
+  // o JSON-malformed-from-model NO se cachean (no queremos repetir errores).
+  if (env.KV && result?.verdict && !result.error) {
+    const cacheEntry = { ...result, cached_at: Date.now() };
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(
+        env.KV.put(CACHE_PREFIX + hashKey, JSON.stringify(cacheEntry),
+                   { expirationTtl: CACHE_TTL_SECONDS })
+          .catch(() => {})
+      );
+    } else {
+      // Fallback síncrono si no hay waitUntil (test env).
+      try {
+        await env.KV.put(CACHE_PREFIX + hashKey, JSON.stringify(cacheEntry),
+                         { expirationTtl: CACHE_TTL_SECONDS });
+      } catch {}
+    }
+  }
+
+  logMetrics(env, ctx, {
+    endpoint: 'ai-check',
+    input_len: input.length,
+    verdict: result?.verdict ?? 'ERROR',
+    source: 'anthropic',
+    elapsed_ms: elapsed,
+    error: result?.error || null,
+  });
+  result.source = 'anthropic';
+  return jsonResponse(result, 200, cors);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  /api/approve — aprendizaje desde el operario
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Cuando un operario aprueba manualmente un nombre que el sistema marcó
+// REVIEW (por ejemplo "Francisco Franco García" tras comprobar DNI),
+// guardamos esa decisión en KV con TTL 30 días. Cualquier operario en
+// cualquier instancia de la app verá ese mismo nombre como CLEAN.
+//
+// Body: { input: string, approver_id?: string, note?: string }
+async function recordApproval(request, env, cors, ctx) {
+  if (!env.KV) {
+    return jsonResponse(
+      { ok: false, error: 'KV namespace no configurado en el Worker' },
+      503,
+      cors,
+    );
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ ok: false, error: 'JSON inválido' }, 400, cors); }
+
+  const input = body?.input;
+  if (typeof input !== 'string' || !input.trim()) {
+    return jsonResponse(
+      { ok: false, error: 'Campo "input" (string) requerido' }, 400, cors,
+    );
+  }
+  const approverId = String(body?.approver_id ?? 'operator').slice(0, 64);
+  const note = String(body?.note ?? '').slice(0, 200);
+
+  const hashKey = await canonicalHash(input);
+  const entry = {
+    approved: true,
+    approver_id: approverId,
+    note,
+    timestamp: new Date().toISOString(),
+    input_preview: input.slice(0, 60),
+  };
+
+  try {
+    await env.KV.put(APPROVAL_PREFIX + hashKey, JSON.stringify(entry),
+                     { expirationTtl: APPROVAL_TTL_SECONDS });
+  } catch (err) {
+    return jsonResponse(
+      { ok: false, error: 'KV put failed: ' + err.message }, 500, cors,
+    );
+  }
+
+  // También invalidamos el cache de IA para este input — la próxima vez
+  // que alguien meta el mismo nombre saltará directo a aprobación.
+  try { await env.KV.delete(CACHE_PREFIX + hashKey); } catch {}
+
+  logMetrics(env, ctx, {
+    endpoint: 'approve',
+    input_len: input.length,
+    approver: approverId,
+  });
+
+  return jsonResponse(
+    { ok: true, hash: hashKey, ttl_seconds: APPROVAL_TTL_SECONDS },
+    200, cors,
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Hash determinista de un nombre para clave de cache/aprobación
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Normaliza:
+//   - Lowercase
+//   - Strip diacritics (NFD)
+//   - Colapsa espacios
+// y luego SHA-256 → hex. La normalización es importante: "Pablo Escobar",
+// "PABLO ESCOBAR", "pablo escobar", "Pablo  Escobar " → mismo hash.
+async function canonicalHash(input) {
+  const normalized = input
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+  const data = new TextEncoder().encode(normalized);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Métricas — log estructurado JSON
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Cloudflare Logs (logpush, Workers Trace) capturan automáticamente los
+// console.log. Loguear como JSON una sola línea permite agregación con
+// Logflare/Grafana/Datadog/etc.
+function logMetrics(env, ctx, fields) {
+  const entry = { ts: new Date().toISOString(), ...fields };
+  try {
+    console.log(JSON.stringify(entry));
+  } catch {}
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function buildCorsHeaders(allowedRaw, requestOrigin) {

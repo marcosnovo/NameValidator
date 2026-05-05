@@ -13,6 +13,8 @@ import { spanishProfanity, spanishJokeNames, spanishExactOnly } from '../blockli
 import { englishProfanity, englishJokeNames, englishExactOnly } from '../blocklists/english.js';
 import { frenchProfanity, frenchJokeNames, frenchExactOnly } from '../blocklists/french.js';
 import { portugueseProfanity, portugueseJokeNames, portugueseExactOnly } from '../blocklists/portuguese.js';
+import { germanProfanity, germanJokeNames, germanExactOnly } from '../blocklists/german.js';
+import { italianProfanity, italianJokeNames, italianExactOnly } from '../blocklists/italian.js';
 import { spanishExternal } from '../blocklists/external/es.js';
 import { englishExternal } from '../blocklists/external/en.js';
 import { frenchExternal } from '../blocklists/external/fr.js';
@@ -30,7 +32,7 @@ import {
   historicalFigureTokens,
   HISTORICAL_RARE_SURNAMES,
 } from '../blocklists/historicalFigures.js';
-import { phoneticEs, phoneticEn, phoneticFr, phoneticPt } from '../normalize.js';
+import { phoneticEs, phoneticEn, phoneticFr, phoneticPt, phoneticDe, phoneticIt } from '../normalize.js';
 import { buildAhoCorasick } from '../lib/ahoCorasick.js';
 import { fuzzyContains } from '../lib/fuzzyMatch.js';
 
@@ -40,6 +42,8 @@ const PHONETIC_FN = {
   en: phoneticEn,
   fr: phoneticFr,
   pt: phoneticPt,
+  de: phoneticDe,
+  it: phoneticIt,
 };
 
 // Aplana todas las palabras-broma a sus formas concatenadas y precalcula
@@ -50,6 +54,8 @@ const jokeForms = [
   ...englishJokeNames.map(([form, why]) => ({ form, why, lang: 'en', phonetic: phoneticEn(form) })),
   ...frenchJokeNames.map(([form, why]) => ({ form, why, lang: 'fr', phonetic: phoneticFr(form) })),
   ...portugueseJokeNames.map(([form, why]) => ({ form, why, lang: 'pt', phonetic: phoneticPt(form) })),
+  ...germanJokeNames.map(([form, why]) => ({ form, why, lang: 'de', phonetic: phoneticDe(form) })),
+  ...italianJokeNames.map(([form, why]) => ({ form, why, lang: 'it', phonetic: phoneticIt(form) })),
 ];
 
 const realMadridForms = [
@@ -81,6 +87,10 @@ const acES = buildLangAC(spanishProfanity, spanishExternal, spanishExactOnly);
 const acEN = buildLangAC(englishProfanity, englishExternal, englishExactOnly);
 const acFR = buildLangAC(frenchProfanity, frenchExternal, frenchExactOnly);
 const acPT = buildLangAC(portugueseProfanity, portugueseExternal, portugueseExactOnly);
+// Alemán e italiano sólo tienen blocklist core (sin external/LDNOOBW por
+// ahora). Pasamos array vacío como "external" para reusar el mismo helper.
+const acDE = buildLangAC(germanProfanity, [], germanExactOnly);
+const acIT = buildLangAC(italianProfanity, [], italianExactOnly);
 
 // AC fonético (mismas listas pero con cada palabra transformada)
 const acESPhonetic = buildAhoCorasick(
@@ -103,9 +113,22 @@ const acPTPhonetic = buildAhoCorasick(
     .filter((w) => typeof w === 'string' && !portugueseExactOnly.has(w) && w.length >= 3)
     .map((w) => [phoneticPt(w.replace(/\s/g, '')), w])
 );
+const acDEPhonetic = buildAhoCorasick(
+  germanProfanity
+    .filter((w) => typeof w === 'string' && !germanExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticDe(w.replace(/\s/g, '')), w])
+);
+const acITPhonetic = buildAhoCorasick(
+  italianProfanity
+    .filter((w) => typeof w === 'string' && !italianExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticIt(w.replace(/\s/g, '')), w])
+);
 
-const acByLang = { es: acES, en: acEN, fr: acFR, pt: acPT };
-const acPhoneticByLang = { es: acESPhonetic, en: acENPhonetic, fr: acFRPhonetic, pt: acPTPhonetic };
+const acByLang = { es: acES, en: acEN, fr: acFR, pt: acPT, de: acDE, it: acIT };
+const acPhoneticByLang = {
+  es: acESPhonetic, en: acENPhonetic, fr: acFRPhonetic, pt: acPTPhonetic,
+  de: acDEPhonetic, it: acITPhonetic,
+};
 
 // AC para joke names (todos los idiomas en uno, con metadata del idioma)
 const acJokes = buildAhoCorasick(
@@ -297,6 +320,8 @@ export function staticCheck(variants) {
   checkProfanityList(englishProfanity,    englishExactOnly,    'en', variants, issues);
   checkProfanityList(frenchProfanity,     frenchExactOnly,     'fr', variants, issues);
   checkProfanityList(portugueseProfanity, portugueseExactOnly, 'pt', variants, issues);
+  checkProfanityList(germanProfanity,     germanExactOnly,     'de', variants, issues);
+  checkProfanityList(italianProfanity,    italianExactOnly,    'it', variants, issues);
 
   // ── Nombres-broma conocidos — Aho-Corasick directo + fonético ───────────
   // O(n+matches) en vez de iterar 700 patrones. Sin Scunthorpe whitelist
