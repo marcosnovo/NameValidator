@@ -361,6 +361,18 @@ const EXAMPLES = [
     items: ['M E S S I', 'F.U.C.K', 'pu7a', 'atup', 'ANO'],
   },
   {
+    title: 'Trampas Unicode (cirílico, griego, fullwidth, Math Bold, Zalgo)',
+    cls: 'bad',
+    items: [
+      'Аitor Тilla',                       // cirílico А, Т
+      'Виniciυs mono',                     // mezcla cirílico+griego
+      'Mіke Hunt',                         // и cirílica
+      'Ｖｉｎｉｃｉｕｓ ｍｏｎｏ',                  // fullwidth
+      '𝐕𝐢𝐧𝐢𝐜𝐢𝐮𝐬 𝐦𝐨𝐧𝐨',                          // Mathematical Bold
+      '𝓥𝓲𝓷𝓲𝓬𝓲𝓾𝓼 𝓶𝓸𝓷𝓸',                          // Mathematical Script
+    ],
+  },
+  {
     title: 'Nombres-broma ES',
     cls: 'bad',
     items: ['Aitor Tilla', 'Susana Oria', 'Mario Neta', 'Lola Mento', 'Helio Cóptero'],

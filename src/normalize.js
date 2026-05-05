@@ -17,7 +17,80 @@ const LEET_MAP = {
   '8': 'b',
   '9': 'g',
   '6': 'g',
+  '2': 'z',
 };
+
+// ── Unicode Confusables / homoglyphs (vector de evasión clásico) ──────────
+// Mapeo de caracteres cirílicos, griegos y otros que VISUALMENTE parecen
+// letras latinas pero son code points distintos. Sin esta defensa, alguien
+// podría escribir "Аitor Тilla" (con А cirílica + Т cirílica) y nuestra
+// blocklist no matchearía.
+//
+// Cobertura crítica (basada en Unicode Standard "confusables.txt" filtrado
+// a los confusables más usados como evasión):
+//   - Cirílico minúsculas y mayúsculas
+//   - Griego minúsculas y mayúsculas
+//   - Mathematical Alphanumeric Symbols (𝐀-𝐳, 𝑨-𝒛, 𝓐-𝔃, 𝕬-𝖟…)
+//   - Fullwidth Forms (Ａ-Ｚ, ａ-ｚ — U+FF21-U+FF3A, U+FF41-U+FF5A)
+//   - Otros símbolos visualmente equivalentes
+const CONFUSABLE_MAP = {
+  // ── Cirílico minúsculas
+  'а': 'a', 'в': 'v', 'с': 'c', 'е': 'e', 'ѕ': 's', 'і': 'i', 'ј': 'j',
+  'к': 'k', 'м': 'm', 'н': 'n', 'о': 'o', 'р': 'p', 'т': 't', 'у': 'y',
+  'х': 'x', 'ѵ': 'v', 'ԝ': 'w', 'ʏ': 'y',
+  'и': 'i',           // и phonéticamente /i/, usado en ataques tipo "Виniciυs"
+  'й': 'y',           // й = sound /y/
+  'г': 'g', 'д': 'd', 'ж': 'zh',
+  'з': 'z', 'л': 'l', 'н': 'n', 'п': 'p',
+  'ф': 'f', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh',
+  'щ': 'sch', 'ы': 'y', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+  'ё': 'e',
+  // ── Cirílico mayúsculas
+  'А': 'A', 'В': 'V', 'С': 'C', 'Е': 'E', 'Ѕ': 'S', 'І': 'I', 'Ј': 'J',
+  'К': 'K', 'М': 'M', 'Н': 'N', 'О': 'O', 'Р': 'P', 'Т': 'T', 'У': 'Y',
+  'Х': 'X', 'Ѵ': 'V', 'Ԝ': 'W',
+  'И': 'I', 'Й': 'Y', 'Г': 'G', 'Д': 'D',
+  'З': 'Z', 'Л': 'L', 'П': 'P', 'Ф': 'F',
+  'Ц': 'TS', 'Ч': 'CH', 'Ш': 'SH', 'Щ': 'SCH',
+  'Ы': 'Y', 'Э': 'E', 'Ю': 'YU', 'Я': 'YA', 'Ё': 'E',
+  'Ж': 'ZH',
+  // ── Griego minúsculas
+  'α': 'a', 'β': 'b', 'ε': 'e', 'ι': 'i', 'κ': 'k', 'ν': 'v', 'ο': 'o',
+  'ρ': 'p', 'τ': 't', 'υ': 'u', 'χ': 'x', 'ω': 'w',
+  // ── Griego mayúsculas
+  'Α': 'A', 'Β': 'B', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'H', 'Ι': 'I', 'Κ': 'K',
+  'Μ': 'M', 'Ν': 'N', 'Ο': 'O', 'Ρ': 'P', 'Τ': 'T', 'Υ': 'Y', 'Χ': 'X',
+  // ── Otros confusables comunes (símbolos)
+  '＿': '_', '·': '.', '・': '.',
+  '𝟬': '0', '𝟱': '5', '𝟴': '8',
+  // ── Latin Extended caracteres que parecen latinos pero no se normalizan
+  //    bien con NFD
+  'ɑ': 'a', 'ɡ': 'g', 'ɪ': 'i', 'ɴ': 'n', 'ѕ': 's',
+};
+
+// Reemplaza confusables por su equivalente ASCII canónico.
+//
+// La estrategia es de dos pasos:
+//   1) Unicode NFKC (Compatibility Composition) — handler automático para
+//      fullwidth (Ｖ→V), Mathematical Alphanumeric (𝐕,𝓥,𝕍,𝖁→V), ligaduras
+//      (ﬁ→fi), formas tipográficas y de compatibilidad. Estándar Unicode.
+//   2) CONFUSABLE_MAP explícito — para el cirílico/griego, que NFKC NO
+//      transforma porque son scripts distintos (no compatibility forms).
+//
+// También elimina marcas combinantes (Zalgo: V̴̢̛̫̲̥̅) usando \p{M}.
+function unconfuse(s) {
+  if (!s) return '';
+  // Paso 1: NFKC normaliza fullwidth + math alphanumeric + ligaduras.
+  s = s.normalize('NFKC');
+  // Paso 2: quitamos cualquier marca combinante remanente (Zalgo defense).
+  s = s.replace(/\p{M}+/gu, '');
+  // Paso 3: aplicamos mapeo explícito de cirílico/griego/símbolos.
+  let out = '';
+  for (const ch of s) {
+    out += CONFUSABLE_MAP[ch] ?? ch;
+  }
+  return out;
+}
 
 // Quita diacríticos: á→a, é→e, ñ→n, ç→c, ü→u, ø→o…
 function stripDiacritics(s) {
@@ -137,7 +210,15 @@ function phoneticPt(s) {
 function buildVariants(raw) {
   if (typeof raw !== 'string') raw = String(raw ?? '');
 
-  const trimmed = collapseSpaces(raw);
+  // ORDEN crítico:
+  //   1. unconfuse — antes de lowercase, porque CONFUSABLE_MAP tiene mayús/min
+  //   2. collapseSpaces — sin esto los joins fallan
+  //   3. lowercase
+  //   4. stripDiacritics — NFD también limpia combining marks (Zalgo)
+  //   5. deLeet — leet siempre sobre minúsculas
+  //   6. lettersOnly — concat para sliding-window match
+  const unconfused = unconfuse(raw);
+  const trimmed = collapseSpaces(unconfused);
   const lower = trimmed.toLowerCase();
   const noDiacritics = stripDiacritics(lower);
   const deLeeted = deLeet(noDiacritics);
@@ -174,6 +255,7 @@ export {
   stripDiacritics,
   deLeet,
   lettersOnly,
+  unconfuse,
   phoneticEs,
   phoneticEn,
   phoneticFr,
