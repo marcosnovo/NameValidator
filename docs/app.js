@@ -575,9 +575,20 @@ function setProgress(progress, text) {
 
 function progressLabel(stage, status) {
   const stageLabel = {
-    'ocr-general': 'Reconociendo texto general',
+    'analyze': 'Analizando imagen',
+    'detect-document': 'Detectando bordes del documento',
+    'quality': 'Evaluando calidad',
+    'preprocess': 'Preprocesando imagen',
+    'ocr-pass-1': 'OCR pasada 1 (recortado)',
+    'ocr-pass-2': 'OCR pasada 2 (preprocesado)',
+    'ocr-multi': 'OCR multi-pass',
+    'ocr-general': 'Reconociendo texto',
     'ocr-mrz-zone': 'Reconociendo zona MRZ',
     'mrz-parse': 'Parseando MRZ',
+    'detect-type': 'Identificando tipo de documento',
+    'dni-front': 'Parsing DNI español frontal',
+    'passport-front': 'Parsing pasaporte',
+    'driving-license': 'Parsing carnet de conducir',
     'dni-spain': 'Detectando DNI/NIE',
   }[stage] || stage;
   return status ? `${stageLabel}: ${status}` : stageLabel;
@@ -600,6 +611,11 @@ async function processImage(imageSource) {
       },
     });
     lastResult = result;
+    // Si jscanify recortó+enderezó el documento, mostramos esa imagen
+    // en el preview de resultado (más útil que la foto cruda).
+    if (result.croppedDataUrl) {
+      scanPreviewImg2.src = result.croppedDataUrl;
+    }
     renderResult(result);
   } catch (err) {
     showError(err?.message ?? String(err));

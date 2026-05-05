@@ -46,6 +46,7 @@ import {
   preprocessForOcrSoft,
   estimatePhotoQuality,
 } from './imagePreprocess.js';
+import { getDocumentDetector, canvasToImage } from './documentDetector.js';
 
 export class DocumentScanner {
   /**
@@ -73,13 +74,50 @@ export class DocumentScanner {
     };
 
     // ── PASO 0: Convertir a canvas + estimar calidad de foto ──────────────
-    onProgress({ stage: 'analyze', progress: 0.1 });
-    const canvas = await imageToCanvas(image);
-    const quality = estimatePhotoQuality(canvas);
-    result.photoQuality = quality;
+    onProgress({ stage: 'analyze', progress: 0.05 });
+    const originalCanvas = await imageToCanvas(image);
 
-    // Si la calidad es muy mala, devolvemos antes con sugerencias.
-    // El operador puede verlas y sacar mejor foto sin esperar al OCR.
+    // ── PASO 1: DETECTAR documento y RECORTAR + ENDEREZAR ───────────────
+    // Esta es la mejora más impactante: si la foto tiene el documento como
+    // una pequeña parte rodeada de browser chrome / fondo / signature
+    // duplicada, jscanify localiza los 4 vértices, recorta y endereza
+    // mediante warp de perspectiva. Lo que llega al OCR es SÓLO el
+    // documento, sin ruido y sin perspectiva.
+    onProgress({ stage: 'detect-document', progress: 0.1 });
+    let workingCanvas = originalCanvas;
+    let detection = null;
+    try {
+      const detector = await getDocumentDetector();
+      const imgEl = image instanceof HTMLImageElement
+        ? image
+        : await canvasToImage(originalCanvas);
+      detection = await detector.detectAndWarp(imgEl, { minCoverage: 0.10 });
+      if (detection.found) {
+        workingCanvas = detection.croppedCanvas;
+        result.documentDetected = {
+          coverage: detection.coverage,
+          width: detection.width,
+          height: detection.height,
+          rotated: detection.rotated,
+        };
+        // Exponemos el dataURL del documento recortado para que la UI
+        // lo muestre en lugar de la foto cruda.
+        try {
+          result.croppedDataUrl = workingCanvas.toDataURL('image/jpeg', 0.85);
+        } catch {}
+      } else {
+        result.documentDetected = { found: false, reason: detection.reason };
+      }
+    } catch (err) {
+      // Si OpenCV/jscanify falla (red, dispositivo viejo…), seguimos con
+      // la imagen original. El sistema sigue funcionando, sólo peor.
+      result.documentDetected = { found: false, reason: 'detector_error', error: err.message };
+    }
+
+    // ── PASO 2: Estimar calidad sobre la imagen TRABAJADA ─────────────────
+    onProgress({ stage: 'quality', progress: 0.2 });
+    const quality = estimatePhotoQuality(workingCanvas);
+    result.photoQuality = quality;
     if (quality.quality === 'poor' && quality.score < 30) {
       result.ok = false;
       result.qualityRejected = true;
@@ -87,52 +125,60 @@ export class DocumentScanner {
       return result;
     }
 
-    // ── PASO 1: MULTI-PASS OCR (3 preprocesados en paralelo) ──────────────
-    // Pasada A: imagen original (Tesseract decide la binarización)
-    // Pasada B: pipeline FUERTE (gris + autocontraste + sharpen + Sauvola
-    //           + upscale 2×) — bien para DNIs y documentos con texto fino
-    // Pasada C: pipeline SOFT (sin threshold, mantiene grises) — bien para
-    //           pasaportes y carnets con diseños complejos donde el
-    //           threshold corta letras
-    //
-    // El recognizeMulti los lanza en paralelo (createScheduler) y devuelve
-    // el de mayor confianza + todos los textos para combinarlos después.
-    onProgress({ stage: 'preprocess', progress: 0.2 });
-    let preprocessedHard, preprocessedSoft;
+    // ── PASO 3: 2-PASS OCR SECUENCIAL ─────────────────────────────────────
+    // Reducimos de 3 paralelo a 2 secuencial: en móviles los workers
+    // paralelos compiten por CPU y la latencia real es peor. Con 2
+    // pasadas secuenciales tenemos mejor rendimiento real:
+    //   A) imagen recortada (workingCanvas) — para texto general y MRZ
+    //   B) preprocessed HARD (Sauvola threshold) — sólo si A no encontró
+    //      ningún campo (ahorro: si A funciona, no gastamos B)
+    onProgress({ stage: 'preprocess', progress: 0.3 });
+    let preprocessedHard;
     try {
-      preprocessedHard = preprocessForOcr(canvas);
-      preprocessedSoft = preprocessForOcrSoft(canvas);
-    } catch (err) {
-      // Si falla el preprocesado por OOM o algo, seguimos sólo con original
-      preprocessedHard = canvas;
-      preprocessedSoft = canvas;
+      preprocessedHard = preprocessForOcr(workingCanvas);
+    } catch {
+      preprocessedHard = workingCanvas;
     }
 
-    onProgress({ stage: 'ocr-multi', progress: 0.3 });
-    const multi = await recognizeMulti(
-      [
-        { label: 'original', image: canvas },
-        { label: 'hard', image: preprocessedHard },
-        { label: 'soft', image: preprocessedSoft },
-      ],
-      { languages: 'spa+eng' },
-    );
-    onProgress({ stage: 'ocr-multi', progress: 0.7 });
+    onProgress({ stage: 'ocr-pass-1', progress: 0.4 });
+    const passOriginal = await recognize(workingCanvas, {
+      languages: 'spa+eng',
+      onProgress: (p) =>
+        onProgress({ stage: 'ocr-pass-1', status: p.status, progress: 0.4 + (p.progress ?? 0) * 0.25 }),
+    });
 
-    // Concatenamos TODOS los textos para que los parsers tengan máxima
-    // chance de encontrar labels (diferentes pasadas pueden capturar
-    // labels distintos). Pero conservamos por separado para debug.
-    const combinedText = multi.all.map((r) => r.text).join('\n');
+    // ¿Pasada 1 ya encontró algo? Si MRZ con buenos checksums o número
+    // DNI válido están en passOriginal.text, podemos saltarnos la 2ª pasada.
+    const quickMrz = parseMrz(passOriginal.text);
+    const quickDniValid = !!quickMrz?.valid ||
+      Object.values(quickMrz?.checksums || {}).filter(Boolean).length >= 3;
+    let passHard = null;
+    if (!quickDniValid) {
+      onProgress({ stage: 'ocr-pass-2', progress: 0.65 });
+      passHard = await recognize(preprocessedHard, {
+        languages: 'spa+eng',
+        onProgress: (p) =>
+          onProgress({ stage: 'ocr-pass-2', status: p.status, progress: 0.65 + (p.progress ?? 0) * 0.25 }),
+      });
+    }
+
+    const passes = [
+      { label: 'recortado', confidence: passOriginal.confidence, length: passOriginal.text.length },
+    ];
+    if (passHard) passes.push({
+      label: 'preprocesado',
+      confidence: passHard.confidence,
+      length: passHard.text.length,
+    });
+
+    const combinedText = passHard
+      ? passOriginal.text + '\n' + passHard.text
+      : passOriginal.text;
     result.rawText = combinedText;
-    result.ocrConfidence = multi.best.confidence;
-    result.passes = multi.all.map(({ label, confidence, text }) => ({
-      label,
-      confidence,
-      length: text.length,
-    }));
+    result.ocrConfidence = Math.max(passOriginal.confidence, passHard?.confidence ?? 0);
+    result.passes = passes;
 
-    // Para los parsers usamos el texto COMBINADO (más cobertura).
-    const ocr = { text: combinedText, confidence: multi.best.confidence };
+    const ocr = { text: combinedText, confidence: result.ocrConfidence };
 
     // ── PASO 2: ¿Hay MRZ? Lo intentamos directo con texto general
     onProgress({ stage: 'mrz-parse', progress: 0 });
