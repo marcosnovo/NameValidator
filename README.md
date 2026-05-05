@@ -20,7 +20,8 @@ input ──▶ ① Format ──▶ ② Normalización ──▶ ③ Listas ES/
 |---|---|---|
 | **① Format** | Longitud, charset Unicode permitido | 0 |
 | **② Normalización** | NFD (sin acentos), lowercase, leet (`0→o`,`@→a`,`7→t`…), tokens, concatenado-sin-espacios, invertido | 0 |
-| **③ Listas estáticas** | ~1.200 entradas: vulgaridades + slurs + ~600 nombres-broma canónicos en ES/EN/FR + jugadores rivales del Real Madrid (Barcelona, Atlético) con FULL-NAME matching para evitar bloquear apellidos legítimos como *Guardiola* o *Iniesta* en personas civiles | 0 |
+| **②.b Fonética por idioma** | Vista paralela por idioma con normalización fonética: castellano (b↔v, h muda, ll→y, w→gu, seseo), inglés (ph→f, ck→k, doble-cons→cons), francés (qu→k, ç→s) y portugués (nh→n, lh→l, h muda, ç→s). Atrapa "devora melo"="deboramelo", "Carlos Gil Hipoyas"="gilipollas", "Warra"="guarra", "Mar Higuan Arica"="marihuana" | 0 |
+| **③ Listas estáticas** | ~1.500 entradas: vulgaridades + slurs + ~700 nombres-broma canónicos en ES/EN/FR/PT + jugadores rivales del Real Madrid (Barcelona, Atlético) con FULL-NAME matching para evitar bloquear apellidos legítimos como *Guardiola* o *Iniesta* en personas civiles | 0 |
 | **④ Sliding-window / concat** | Busca subcadenas en TODAS las vistas normalizadas (concatenada, deleeted, invertida). Atrapa *Aitor Tilla* → `aitortilla` | 0 |
 | **⑤ Capa semántica AI** | Claude Opus 4.7 con *adaptive thinking* + *effort:high*. Detecta dobles sentidos NUEVOS, homófonos, re-segmentaciones que las listas no cubren. Output estructurado vía `json_schema`. Modo **proxy** (recomendado) o **direct** según despliegue. | tokens |
 

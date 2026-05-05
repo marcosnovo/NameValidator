@@ -1,26 +1,42 @@
 // Capa estática: busca cada palabra prohibida como subcadena en TODAS las
 // vistas del input (concatenado sin espacios, invertido, deleeted, fonética
-// castellana…). Es la primera defensa: rapidísima, determinista, y atrapa
+// del idioma…). Es la primera defensa: rapidísima, determinista, y atrapa
 // el grueso de los casos sin gastar tokens de IA.
+//
+// Cambio clave vs versión anterior:
+//   ▸ El matching fonético ahora se aplica a TODAS las listas (profanity,
+//     joke names, jugadores rivales y chants), no sólo a joke names.
+//     Esto es lo que arregla "Carlos Gil Hipoyas" → "gilipollas",
+//     "Mar Higuan Arica" → "marihuana", "Warra" → "guarra", etc.
 
 import { spanishProfanity, spanishJokeNames, spanishExactOnly } from '../blocklists/spanish.js';
 import { englishProfanity, englishJokeNames, englishExactOnly } from '../blocklists/english.js';
 import { frenchProfanity, frenchJokeNames, frenchExactOnly } from '../blocklists/french.js';
+import { portugueseProfanity, portugueseJokeNames, portugueseExactOnly } from '../blocklists/portuguese.js';
 import {
   rivalPlayerFullNames,
   antiMadridChants,
   uniqueAloneSurnames,
   commonAloneSurnames,
 } from '../blocklists/realMadrid.js';
-import { phoneticEs } from '../normalize.js';
+import { phoneticEs, phoneticEn, phoneticFr, phoneticPt } from '../normalize.js';
 
-// Aplana todas las palabras-broma a sus formas concatenadas y precalcula su
-// versión fonética castellana, para que la búsqueda sea O(1) lookup en cada
-// pase.
+// Selecciona el transformador fonético según el idioma de la entrada.
+const PHONETIC_FN = {
+  es: phoneticEs,
+  en: phoneticEn,
+  fr: phoneticFr,
+  pt: phoneticPt,
+};
+
+// Aplana todas las palabras-broma a sus formas concatenadas y precalcula
+// también su versión fonética (en su idioma). Hacerlo al cargar el módulo
+// significa que cada validación es O(N) lookups con strings ya normalizados.
 const jokeForms = [
   ...spanishJokeNames.map(([form, why]) => ({ form, why, lang: 'es', phonetic: phoneticEs(form) })),
-  ...englishJokeNames.map(([form, why]) => ({ form, why, lang: 'en', phonetic: null })),
-  ...frenchJokeNames.map(([form, why]) => ({ form, why, lang: 'fr', phonetic: null })),
+  ...englishJokeNames.map(([form, why]) => ({ form, why, lang: 'en', phonetic: phoneticEn(form) })),
+  ...frenchJokeNames.map(([form, why]) => ({ form, why, lang: 'fr', phonetic: phoneticFr(form) })),
+  ...portugueseJokeNames.map(([form, why]) => ({ form, why, lang: 'pt', phonetic: phoneticPt(form) })),
 ];
 
 const realMadridForms = [
@@ -28,19 +44,13 @@ const realMadridForms = [
   ...antiMadridChants.map(([form, why]) => ({ form, why, category: 'anti-madrid', phonetic: phoneticEs(form) })),
 ];
 
-// Apellidos rivales SOLOS — la comparación es exact-equals contra la
-// concatenación normalizada (no substring). Eso permite que "Carlos Messi
-// García" pase (concat: carlosmessigarcia ≠ messi) pero "M E S S I" no
-// (concat: messi == messi).
 const aloneRivalSurnames = [
   ...uniqueAloneSurnames.map(([form, why]) => ({ form, why, severity: 'high' })),
   ...commonAloneSurnames.map(([form, why]) => ({ form, why, severity: 'medium' })),
 ];
 
 function findHitInTokens(tokens, needle) {
-  // Match a token completo o frase completa entre espacios.
   for (const t of tokens) if (t === needle) return t;
-  // Frase: si la palabra contiene espacios, comparamos tokens consecutivos.
   if (needle.includes(' ')) {
     const joined = ' ' + tokens.join(' ') + ' ';
     if (joined.includes(' ' + needle + ' ')) return needle;
@@ -63,18 +73,32 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
     variants.reversedConcat,
     variants.deLeeted,
     variants.noDiacritics,
-    variants.phoneticEs,   // ← matches "devora melo" ↔ "deboramelo"
   ];
+
+  // Vista fonética del input correspondiente al idioma.
+  const phoneticInputView = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
+  const phoneticFn = PHONETIC_FN[lang];
 
   for (const word of list) {
     const exactOnly = exactOnlySet.has(word);
     const cleaned = word.replace(/\s/g, '');
-    let hit;
+    let hit = null;
+
     if (exactOnly) {
       hit = findHitInTokens(variants.tokens, word);
     } else {
+      // 1. Match directo en las vistas crudas
       hit = findHitAsSubstring(haystacks, cleaned);
+      // 2. Match fonético: aplica la transformación del idioma a la palabra
+      //    y busca en la vista fonética del input
+      if (!hit && phoneticFn && phoneticInputView) {
+        const phoneticWord = phoneticFn(cleaned);
+        if (phoneticWord && phoneticInputView.includes(phoneticWord)) {
+          hit = phoneticInputView;
+        }
+      }
     }
+
     if (hit) {
       issues.push({
         layer: 'static',
@@ -87,9 +111,9 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
     }
   }
 
-  // Pase aparte: las palabras de exactOnlySet que NO están en la lista
-  // principal (ej. 'ano', que no metemos en spanishProfanity para evitar
-  // falsos positivos en "Ana", pero sí queremos pillar como token aislado).
+  // Pase para palabras de exact-only que NO están en la lista principal
+  // (ej. 'ano': no la metemos en spanishProfanity para no chocar con "Ana",
+  //  pero sí queremos pillarla como token aislado).
   for (const word of exactOnlySet) {
     if (list.includes(word)) continue;
     const hit = findHitInTokens(variants.tokens, word);
@@ -109,25 +133,25 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
 export function staticCheck(variants) {
   const issues = [];
 
-  // ── Profanity ES/EN/FR ──────────────────────────────────────────────────
-  checkProfanityList(spanishProfanity, spanishExactOnly, 'es', variants, issues);
-  checkProfanityList(englishProfanity, englishExactOnly, 'en', variants, issues);
-  checkProfanityList(frenchProfanity, frenchExactOnly, 'fr', variants, issues);
+  // ── Profanity ES/EN/FR/PT con matching directo Y fonético ──────────────
+  checkProfanityList(spanishProfanity,    spanishExactOnly,    'es', variants, issues);
+  checkProfanityList(englishProfanity,    englishExactOnly,    'en', variants, issues);
+  checkProfanityList(frenchProfanity,     frenchExactOnly,     'fr', variants, issues);
+  checkProfanityList(portugueseProfanity, portugueseExactOnly, 'pt', variants, issues);
 
-  // ── Nombres-broma conocidos (con matching fonético en español) ──────────
+  // ── Nombres-broma conocidos con matching directo Y fonético ────────────
   for (const { form, why, lang, phonetic } of jokeForms) {
     const cleaned = form.replace(/\s/g, '');
 
-    // Match directo en concat / dedupe
     const directHit =
       variants.concatNoSpaces.includes(cleaned) ||
       variants.dedupedConcat.includes(cleaned);
 
-    // Match fonético (sólo ES, donde aplica b↔v / h muda / ll↔y)
+    const phoneticView = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
     const phoneticHit =
-      lang === 'es' &&
       phonetic &&
-      variants.phoneticEs.includes(phonetic);
+      phoneticView &&
+      phoneticView.includes(phonetic);
 
     if (directHit || phoneticHit) {
       issues.push({
@@ -136,7 +160,7 @@ export function staticCheck(variants) {
         category: 'joke-name',
         match: form,
         view: variants.concatNoSpaces,
-        reason: why + (phoneticHit && !directHit ? ' (match fonético b↔v / h muda)' : ''),
+        reason: why + (phoneticHit && !directHit ? ' (match fonético)' : ''),
         severity: 'high',
       });
     }
@@ -165,11 +189,6 @@ export function staticCheck(variants) {
   }
 
   // ── Apellidos rivales SOLOS — match exact-equals al concat ──────────────
-  // "M E S S I" → concat "messi" → match.
-  // "Carlos Messi García" → concat "carlosmessigarcia" → no match.
-  // Severity high para apellidos foráneos únicos (Messi, Cruyff…) que
-  // bloquean. Severity medium para apellidos comunes (Iniesta, Guardiola…)
-  // que mandan a REVIEW para que un humano confirme.
   for (const { form, why, severity } of aloneRivalSurnames) {
     if (
       variants.concatNoSpaces === form ||

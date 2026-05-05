@@ -46,40 +46,86 @@ function dedupeRuns(s) {
   return s.replace(/(.)\1{2,}/g, '$1$1');
 }
 
-// Normalización fonética castellana: aplica las equivalencias de sonido del
-// español de España para que "devora melo" matchee "deboramelo", "yo me
-// llamo" matchee "yomeyamo", etc. Reglas aplicadas:
-//   - v → b (b/v son homófonos en castellano)
-//   - h → '' EXCEPTO cuando va precedida de c (mantenemos "ch")
-//   - ll → y (yeísmo)
-//   - z → s y c+(e|i) → s (seseo — útil para variantes LatAm; en España
-//     se usa ortografía con z/c, pero algunos nombres-broma juegan con eso)
-//   - ñ → n (defensa contra escapes tipo "ñ" → "n")
-//
-// Esta función se aplica sobre `concatNoSpaces` (todo junto, ya sin
-// acentos ni leet), generando una vista paralela contra la que también
-// buscamos.
+// ──── Normalizaciones fonéticas por idioma ────────────────────────────────
+// Cada función toma un string ya en minúsculas, sin acentos y sin leet, y
+// devuelve la "forma canónica fonética" para ese idioma. La capa estática
+// busca en paralelo en la forma directa Y en la forma fonética, así
+// "devora melo" matchea "deboramelo", "Carlos Gil Hipoyas" matchea
+// "gilipollas", "Warra" matchea "guarra", etc.
+
+// Castellano de España. Equivalencias:
+//   - v ↔ b (homófonos)
+//   - h muda (excepto en "ch")
+//   - ll ↔ y (yeísmo)
+//   - z, c+(e|i) → s (seseo — útil para variantes LatAm)
+//   - ñ → n
+//   - qu+(e|i) → k, y q → k
+//   - w → gu (slang: "wapo"="guapo", "warra"="guarra")
 function phoneticEs(s) {
   if (!s) return '';
   return s
-    // 1. ll → y (antes de tocar las "l")
-    .replace(/ll/g, 'y')
-    // 2. ch → 'CHX' temporalmente para protegerla del paso 3 que borra h
-    .replace(/ch/g, 'CHX')
-    // 3. quita h muda en cualquier otra posición
+    .replace(/ll/g, 'y')                  // 1. ll → y
+    .replace(/ch/g, '\x01')               // 2. proteger "ch" temporalmente
+    .replace(/h/g, '')                    // 3. quitar h muda
+    .replace(/\x01/g, 'ch')               // 4. restaurar "ch"
+    .replace(/v/g, 'b')                   // 5. v → b
+    .replace(/c(?=[ei])/g, 's')           // 6. ce/ci → se/si
+    .replace(/z/g, 's')                   //    z → s
+    .replace(/ñ/g, 'n')                   // 7. ñ → n
+    .replace(/qu(?=[ei])/g, 'k')          // 8. qu+e/i → k+e/i
+    .replace(/q/g, 'k')                   //    resto de q → k
+    .replace(/w/g, 'gu');                 // 9. w → gu (slang castellano)
+}
+
+// Inglés. Más conservador — sólo sonidos donde la ortografía oculta:
+//   - ph → f ("Phil" sonaría como "Fil")
+//   - ck → k
+//   - kn al inicio → n ("knight" sonaría como "night")
+//   - silent gh ("though" → "tho")
+//   - dobles consonantes colapsadas (ll, mm, nn, pp, ss, tt, cc, ff, gg, dd
+//     a una sola). Defiende contra typing variations: McCavity vs Mecavity.
+function phoneticEn(s) {
+  if (!s) return '';
+  return s
+    .replace(/ph/g, 'f')
+    .replace(/ck/g, 'k')
+    .replace(/^kn/g, 'n')
+    .replace(/gh(?=t|$)/g, '')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Francés. Las consonantes finales mudas son demasiado variables para una
+// regla simple, así que cubrimos lo más útil:
+//   - qu → k ("Jacques" sonaría como "zhak"…)
+//   - ç → s
+//   - x → ks (en pocos casos)
+//   - ph → f
+function phoneticFr(s) {
+  if (!s) return '';
+  return s
+    .replace(/qu/g, 'k')
+    .replace(/ç/g, 's')
+    .replace(/ph/g, 'f');
+}
+
+// Portugués (BR + EU). Equivalencias:
+//   - h muda (igual que en castellano, en PT la h es prácticamente muda)
+//   - nh → n (sonido similar a ñ — "Sonho" → "Sono")
+//   - lh → l (palatalizada — "Filho" → "Filo")
+//   - ç → s
+//   - ã, õ ya se han eliminado por stripDiacritics → a, o
+//   - x suele sonar como "ch" pero la regla es muy variable — la dejamos
+//   - ss → s (sonido único)
+function phoneticPt(s) {
+  if (!s) return '';
+  return s
+    .replace(/nh/g, 'n')
+    .replace(/lh/g, 'l')
+    .replace(/ch/g, '\x01')
     .replace(/h/g, '')
-    // 4. restaura ch
-    .replace(/CHX/g, 'ch')
-    // 5. v → b
-    .replace(/v/g, 'b')
-    // 6. ce/ci → se/si y z → s (seseo)
-    .replace(/c(?=[ei])/g, 's')
-    .replace(/z/g, 's')
-    // 7. ñ → n
-    .replace(/ñ/g, 'n')
-    // 8. qu+(e|i) → k+(e|i)  (para que "que" matchee "ke"-leet)
-    .replace(/qu(?=[ei])/g, 'k')
-    .replace(/q/g, 'k');
+    .replace(/\x01/g, 'ch')
+    .replace(/ç/g, 's')
+    .replace(/ss/g, 's');
 }
 
 // Genera todas las particiones por espacio y devuelve las re-segmentaciones
@@ -99,6 +145,9 @@ function buildVariants(raw) {
   const dedupedConcat = dedupeRuns(concatNoSpaces);
   const reversedConcat = concatNoSpaces.split('').reverse().join('');
   const phoneticEsView = phoneticEs(concatNoSpaces);
+  const phoneticEnView = phoneticEn(concatNoSpaces);
+  const phoneticFrView = phoneticFr(concatNoSpaces);
+  const phoneticPtView = phoneticPt(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -112,9 +161,21 @@ function buildVariants(raw) {
     concatNoSpaces,       // todo junto, sólo letras  ←  ★ la vista clave
     dedupedConcat,        // con runs colapsados
     reversedConcat,       // al revés
-    phoneticEs: phoneticEsView, // ★ b↔v, h muda, ll→y, seseo
+    phoneticEs: phoneticEsView, // ★ b↔v, h muda, ll→y, w→gu, seseo
+    phoneticEn: phoneticEnView, //   ph→f, ck→k
+    phoneticFr: phoneticFrView, //   qu→k, ç→s, ph→f
+    phoneticPt: phoneticPtView, //   nh→n, lh→l, h muda, ç→s
     tokens,               // ['aitor', 'tilla']
   };
 }
 
-export { buildVariants, stripDiacritics, deLeet, lettersOnly, phoneticEs };
+export {
+  buildVariants,
+  stripDiacritics,
+  deLeet,
+  lettersOnly,
+  phoneticEs,
+  phoneticEn,
+  phoneticFr,
+  phoneticPt,
+};

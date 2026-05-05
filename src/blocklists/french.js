@@ -80,6 +80,27 @@ export const frenchProfanity = [
 
   // Pédocriminalité (tolerancia cero)
   'pédoporno', 'pédocriminel', 'aime les enfants sexuellement',
+
+  // ── Ampliación: profanity-light + slurs adicionales
+  'caca', 'cacaboudin', 'pipi',
+  'ducon', 'duconnasse',
+  'ducul', 'cul-de-jatte',
+  'tête de gland', 'gland', 'glands',
+  'bite molle', 'bitemolle',
+  'foufoune', 'foufounette',
+  'zob', 'zobi',
+  'queutard',
+  'pédant', 'pédanteux',
+  'crétin', 'crétine', 'crétins',
+  'débile', 'débiles', 'débilité',
+  'tarlouze', 'tarlouzes',
+  'pédéraste', 'pédérastes',
+  'sodomite',
+  'putoufeu', 'putoclou',
+
+  // Anti-Madrid en francés
+  'putain de madrid', 'putaindemadrid', 'merdedemadrid',
+  'vive le barca', 'viveelbarca', 'vivelebarca', 'vivebarca',
 ];
 
 // ─── Noms-blagues en français ───────────────────────────────────────────────

@@ -151,17 +151,49 @@ export const commonAloneSurnames = [
 
 // ─── Chants antimadridistas / pro-rivales ──────────────────────────────────
 export const antiMadridChants = [
+  // ── Hala / Visca / Força / Viva / Vamos Barça (todas las variantes)
   ['halabarca', '"Hala Barça"'],
   ['halabarsa', '"Hala Barsa"'],
+  ['halabarcelona', '"Hala Barcelona"'],
   ['viscaelbarca', '"Visca el Barça"'],
   ['viscaelbarsa', '"Visca el Barsa"'],
+  ['viscabarca', '"Visca Barça"'],
+  ['viscabarsa', '"Visca Barsa"'],
+  ['vivaelbarca', '"Viva el Barça"'],
+  ['vivaelbarsa', '"Viva el Barsa"'],
+  ['vivaelbarcelona', '"Viva el Barcelona"'],
+  ['vivaelbarça', '"Viva el Barça"'],
+  ['vivabarca', '"Viva Barça"'],
+  ['vivabarsa', '"Viva Barsa"'],
+  ['vivabarcelona', '"Viva Barcelona"'],
   ['forcabarca', '"Força Barça"'],
+  ['forcabarsa', '"Força Barsa"'],
   ['forsabarca', '"Forsa Barça"'],
+  ['forsabarsa', '"Forsa Barsa"'],
+  ['vamosbarca', '"Vamos Barça"'],
+  ['vamosbarsa', '"Vamos Barsa"'],
+  ['arribaelbarca', '"Arriba el Barça"'],
+  ['arribaelbarsa', '"Arriba el Barsa"'],
+  // ── Identidad culé / Barcelona
+  ['blaugrana', '"Blaugrana" (colores y mote del Barça)'],
+  ['blaugranas', '"Blaugranas"'],
+  ['culeblaugrana', '"Culé blaugrana"'],
+  ['culerblaugrana', '"Culer blaugrana"'],
+  ['culers', '"Culers" (afición Barça)'],
+  ['culerada', '"Culerada" (peyorativo)'],
+  ['azulgrana', '"Azulgrana"'],
+  ['azulgranas', '"Azulgranas"'],
+  // ── Lemas Barça
   ['mesqueunclub', '"Més que un club"'],
   ['masqueunclub', '"Más que un club"'],
+  // ── Catalanismo en contexto deportivo (dejar pasar identidad civil real,
+  //    pero los chants de estadio van a la blocklist)
   ['catalunyaindependent', '"Catalunya Independent"'],
   ['cataluniaindependiente', '"Cataluña Independiente"'],
   ['independenciacatalunya', '"Independencia Catalunya"'],
+  ['visquicatalunya', '"Visqui Catalunya"'],
+  ['visqueucatalunya', '"Visquéu Catalunya"'],
+  // ── Boicot / insultos al Madrid
   ['boycottbernabeu', '"Boycott Bernabéu"'],
   ['boycotbernabeu', '"Boycot Bernabéu"'],
   ['madriddemierda', '"Madrid de mierda"'],
@@ -171,8 +203,11 @@ export const antiMadridChants = [
   ['putomadrid', '"Puto Madrid"'],
   ['putosblancos', '"Putos blancos"'],
   ['putoflorentino', '"Puto Florentino"'],
+  ['flori dimision', 'Florentino dimisión (gago)'],
+  // ── Atleti
   ['atletigrandeza', '"Atleti grandeza" (chant rival)'],
   ['arribaelatleti', '"Arriba el Atleti"'],
   ['indiosatleti', '"Indios Atleti" (mote)'],
+  ['aupaatleti', '"Aupa Atleti"'],
   ['lasentencia', '"La sentencia" (referencia anti-Madrid)'],
 ];

@@ -108,6 +108,30 @@ export const englishProfanity = [
   'child porn', 'kiddie porn', 'cp lover',
   'love kids sexually', 'underage girls', 'underage boys',
   'mapnotpedo', 'minor attracted',
+
+  // ── Ampliación: profanity-light EN + más slurs
+  'poop', 'poopy', 'poopface', 'poophead',
+  'pee', 'peepee',
+  'butthole', 'butt hole', 'butt-face',
+  'arsehat', 'arsewipe',
+  'numbnuts', 'shitbird',
+  'doofus', 'dumbo', 'dumbshit',
+  'moron', 'morons', 'moronic',
+  'imbecile', 'imbeciles',
+  'cretin', 'cretins',
+  'half-wit', 'halfwit',
+  'lamebrain',
+  'jackoff', 'jerkwad',
+  'turd', 'turdface', 'turdburger',
+  'butthurt',
+  'fuckhead', 'fuckmuppet', 'fucktwit', 'fuckstick',
+  'cumbubble', 'cumrag',
+  'dipshit', 'dipstick',
+  'pigfucker', 'cowfucker',
+  'incest', 'beastiality',
+
+  // Anti-Madrid EN
+  'fuckmadrid', 'fuck madrid', 'realmadridsucks',
 ];
 
 // ─── English joke / gag names ────────────────────────────────────────────────
@@ -230,7 +254,13 @@ export const englishJokeNames = [
 
   // ── Phil … (fill my …)
   ['philmccavity', 'Phil McCavity → "fill my cavity"'],
+  ['philmccavities', 'Phil McCavities (variante)'],
+  ['philmcavity', 'Phil Mcavity (sin doble c)'],
+  ['philmecavity', 'Phil Mecavity (foneticamente "fill my cavity")'],
+  ['philmacavity', 'Phil MaCavity (variante)'],
   ['philipmccavity', 'Philip McCavity → "fill up my cavity"'],
+  ['philipmecavity', 'Philip Mecavity (variante)'],
+  ['filmcavity', 'Fil McAvity (con f directa)'],
   ['philmccracken', 'Phil McCracken → "fill my crack in"'],
   ['philmahole', 'Phil Mahole → "fill my hole"'],
   ['philmahooha', 'Phil Mahooha → "fill my hoo-ha"'],

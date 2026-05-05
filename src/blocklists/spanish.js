@@ -13,7 +13,7 @@ export const spanishProfanity = [
   'polla', 'pollas', 'pollon', 'pollona', 'polludo',
   'verga', 'vergas', 'pene', 'penes',
   'coño', 'cono', 'conyo', 'conazo',
-  'chocho', 'chochete', 'chochito',
+  'chocho', 'chochete', 'chochito', 'chochazo', 'chochaza', 'chochote',
   // 'concha'/'conchita' son nombres legítimos (Concepción), bloqueamos sólo
   // formas claramente vulgares; el matiz cultural sudaca lo decide la AI.
   'conchabierta', 'conchatumadre', 'conchadetumadre', 'conchadetuhermana',
@@ -40,7 +40,7 @@ export const spanishProfanity = [
   'chupapollas', 'chupapolla', 'lameculos', 'lamehuevos',
   'mierdaseca', 'mierdecilla',
   'capullo', 'capullada',
-  'pringao', 'pringada',
+  'pringao', 'pringada', 'pringado', 'pringados', 'pringadito',
   'mamon', 'mamona', 'mamones',
   'mamadas', 'mamada', 'mamando', 'mamame',
   'follaperros', 'follacabras',
@@ -62,6 +62,12 @@ export const spanishProfanity = [
 
   // Drogas / actos delictivos
   'cocaina', 'cocaine', 'heroina', 'cristal meth', 'porro de',
+  'marihuana', 'mariguana', 'marijuana', 'maria juana',
+  'hachis', 'hashish', 'cannabis', 'maria de la cruz',
+  'metanfetamina', 'crack adicto',
+  'mdma', 'extasis', 'extasisdrogas',
+  'lsd', 'tripi', 'acidos lisergicos',
+  'speed', 'crystal',
   'matar', 'matame', 'mataros', 'asesinar', 'violar', 'violador',
   'pederasta', 'pedofilo', 'pedofila',
 
@@ -89,6 +95,16 @@ export const spanishProfanity = [
   'me cago en dios', 'mecagoendios', 'mecagoenlavirgen',
   'hostia puta', 'ostiaputa', 'hostiaputa',
   'cago en la madre',
+  // Variantes "me cago en X" (todas vulgares, igual de ofensivas)
+  'me cago en tu madre', 'mecagoentumadre', 'mecagontumadre',
+  'me cago en tus muertos', 'mecagoentusmuertos', 'mecagontusmuertos',
+  'me cago en la leche', 'mecagoenlaleche',
+  'me cago en la puta', 'mecagoenlaputa',
+  'me cago en todo', 'mecagoentodo', 'mecagoentodolokemeneas',
+  'me cago en la mar', 'mecagoenlamar',
+  'me cago en sus muertos', 'mecagoensusmuertos',
+  'me cago en tu padre', 'mecagoentupadre',
+  'me cago en tu puta madre', 'mecagoentuputamadre',
 
   // Ampliación: más vulgaridades coloquiales
   'cipote', 'cipotes', 'cipoton',
