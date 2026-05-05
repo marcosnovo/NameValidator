@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HALO Name Validator · Santiago Bernabéu</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="badge" aria-hidden="true">⬭</div>
+      <h1>HALO Name Validator</h1>
+      <p class="tagline">
+        Test de nombres aptos para mostrarse en el HALO del Santiago Bernabéu.
+        Detecta lenguaje soez, slurs, nombres-broma y trampas fonéticas en
+        <strong>ES · EN · FR</strong>.
+      </p>
+    </header>
+
+    <main>
+      <section class="panel">
+        <label for="name-input" class="label">Nombre propuesto por el aficionado</label>
+        <div class="field">
+          <input
+            id="name-input"
+            type="text"
+            maxlength="60"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Ej. Vinicius Jr., Juan García, Aitor Tilla…"
+          />
+          <button id="validate-btn" type="button">Validar</button>
+        </div>
+        <div class="row">
+          <label class="check">
+            <input type="checkbox" id="skip-ai" />
+            <span>Omitir capa AI (sólo listas)</span>
+          </label>
+          <span class="health" id="health-status">comprobando…</span>
+        </div>
+        <p class="hint">
+          Pulsa <kbd>Enter</kbd> para validar. Probá variantes sutiles
+          (espacios extra, leet, mayúsculas raras, acentos): el sistema las
+          normaliza antes de evaluar.
+        </p>
+      </section>
+
+      <section class="panel result hidden" id="result">
+        <header class="result-head">
+          <span class="verdict" id="verdict-pill">—</span>
+          <span class="doubt" id="doubt-pill">duda 0%</span>
+          <span class="elapsed" id="elapsed-pill">0 ms</span>
+        </header>
+
+        <div class="meter-wrap" aria-hidden="true">
+          <div class="meter">
+            <div class="meter-fill" id="meter-fill"></div>
+          </div>
+          <div class="meter-scale">
+            <span>0</span><span>30</span><span>70</span><span>100</span>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <h3>Razones</h3>
+            <ul id="reasons-list" class="reasons"></ul>
+          </div>
+          <div>
+            <h3>Detalle técnico</h3>
+            <dl class="meta">
+              <dt>Input</dt><dd id="meta-input">—</dd>
+              <dt>Concatenado</dt><dd id="meta-concat" class="mono">—</dd>
+              <dt>Sin leet</dt><dd id="meta-deleeted" class="mono">—</dd>
+              <dt>Capas ejecutadas</dt><dd id="meta-layers">—</dd>
+            </dl>
+          </div>
+        </div>
+
+        <details class="raw">
+          <summary>Respuesta JSON completa</summary>
+          <pre id="raw-json"></pre>
+        </details>
+      </section>
+
+      <section class="panel examples">
+        <h3>Casos de prueba sugeridos</h3>
+        <p>Haz clic en cualquiera para validarlo automáticamente.</p>
+        <div class="example-grid">
+          <button class="ex ok">Vinicius Jr.</button>
+          <button class="ex ok">María Hernández</button>
+          <button class="ex ok">Jude Bellingham</button>
+          <button class="ex bad">Aitor Tilla</button>
+          <button class="ex bad">Susana Oria</button>
+          <button class="ex bad">Elena Nito</button>
+          <button class="ex bad">Mario Neta</button>
+          <button class="ex bad">Mike Hunt</button>
+          <button class="ex bad">Hugh Jass</button>
+          <button class="ex bad">Ben Dover</button>
+          <button class="ex bad">Jean Bon</button>
+          <button class="ex bad">Paul Ochon</button>
+          <button class="ex bad">P u t a</button>
+          <button class="ex bad">F.U.C.K</button>
+          <button class="ex bad">pu7@</button>
+          <button class="ex bad">atup</button>
+          <button class="ex sus">Helio Cóptero</button>
+          <button class="ex sus">Lola Mento</button>
+          <button class="ex sus">Pepe Cojonez</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>
+        Sistema multi-capa · normalización + listas ES/EN/FR + Claude Opus 4.7.
+        Si dudas, marca <strong>REVIEW</strong> con la duda en porcentaje.
+      </small>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

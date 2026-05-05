@@ -1,0 +1,19 @@
+{
+  "name": "halo-name-validator",
+  "version": "1.0.0",
+  "description": "Validador de nombres para el HALO del Santiago Bernabéu — detecta lenguaje soez, nombres-broma con doble sentido y trampas de re-segmentación en ES/EN/FR.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
