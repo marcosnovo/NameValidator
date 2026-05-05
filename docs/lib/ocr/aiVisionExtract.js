@@ -245,7 +245,12 @@ export function visionToScannerResult(visionData) {
     birthDate: isoOrNull(visionData.birthDate),
     expiryDate: isoOrNull(visionData.expiryDate),
     issueDate: isoOrNull(visionData.issueDate),
-    mrz: visionData.mrz?.line1 ? visionData.mrz : null,
+    // Sólo aceptamos MRZ si tiene línea 1 con contenido REAL (no null,
+    // no vacío). Esto protege contra el modelo emitiendo un objeto MRZ
+    // vacío cuando el schema lo permite pero la imagen no lo contiene.
+    mrz: (visionData.mrz && typeof visionData.mrz.line1 === 'string' && visionData.mrz.line1.trim())
+      ? visionData.mrz
+      : null,
     authenticity: {
       score,
       passed,

@@ -372,15 +372,23 @@ CALIDAD DE LA IMAGEN:
      de cuadro", "fotografía de pantalla con moiré"…)
 
 REGLAS:
-  ▸ NUNCA inventes datos. Si no se ve, deja el campo vacío o null.
+  ▸ NUNCA inventes datos. Si no se ve un campo claramente, devuelve null
+    para ese campo (excepto givenNames/surnames/fullName, que pueden ser
+    cadena vacía si no hay rastro de nombre legible).
   ▸ Devuelve los nombres tal como están en el documento (mayúsculas si así
     salen). El front normaliza después.
   ▸ Si la imagen NO ES un documento de identidad, devuelve documentType
-    'OTHER' y el resto vacío.
+    'OTHER' y el resto null o vacío. NO completes campos por inferencia.
+  ▸ Si sólo se ve PARTE del documento (esquina cortada, glare cubre la
+    mitad), extrae sólo lo legible y deja el resto en null.
   ▸ Responde SÓLO con JSON ajustándote al esquema. Sin texto extra.
   ▸ Considera que el ángulo, la iluminación o el fondo pueden ser malos.
     Aun así, intenta extraer lo que puedas y refleja la dificultad en
     imageQuality / imageHints.`;
+
+// Tipo string-o-null reutilizable. Crítico para evitar fabricación: el
+// modelo prefiere null antes que inventar un valor para satisfacer el schema.
+const STR_OR_NULL = { type: ['string', 'null'] };
 
 const SCAN_RESPONSE_SCHEMA = {
   type: 'object',
@@ -389,24 +397,25 @@ const SCAN_RESPONSE_SCHEMA = {
       type: 'string',
       enum: ['DNI', 'NIE', 'TIE', 'PASSPORT', 'DRIVING_LICENSE', 'RESIDENCE_PERMIT', 'OTHER'],
     },
-    issuingCountry: { type: 'string' },
-    givenNames: { type: 'string' },
-    surnames: { type: 'string' },
-    fullName: { type: 'string' },
-    documentNumber: { type: 'string' },
-    birthDate: { type: 'string' },
-    expiryDate: { type: 'string' },
-    issueDate: { type: 'string' },
-    sex: { type: 'string', enum: ['M', 'F', ''] },
-    nationality: { type: 'string' },
+    issuingCountry: STR_OR_NULL,
+    givenNames: { type: 'string' },   // '' si no se ve
+    surnames: { type: 'string' },     // '' si no se ve
+    fullName: { type: 'string' },     // '' si no se ve
+    documentNumber: STR_OR_NULL,
+    birthDate: STR_OR_NULL,
+    expiryDate: STR_OR_NULL,
+    issueDate: STR_OR_NULL,
+    sex: { type: ['string', 'null'], enum: ['M', 'F', '', null] },
+    nationality: STR_OR_NULL,
     mrz: {
-      type: 'object',
+      // null cuando NO hay MRZ visible — evita fabricar líneas plausibles
+      // con checksums incorrectos que el frontend tomaría como reales.
+      type: ['object', 'null'],
       properties: {
-        line1: { type: 'string' },
-        line2: { type: 'string' },
-        line3: { type: 'string' },
+        line1: STR_OR_NULL,
+        line2: STR_OR_NULL,
+        line3: STR_OR_NULL,
       },
-      required: ['line1', 'line2', 'line3'],
       additionalProperties: false,
     },
     authenticity: {
@@ -422,10 +431,13 @@ const SCAN_RESPONSE_SCHEMA = {
     imageQuality: { type: 'string', enum: ['good', 'fair', 'poor'] },
     imageHints: { type: 'array', items: { type: 'string' } },
   },
+  // Sólo los campos que el modelo SIEMPRE puede determinar: el tipo de
+  // documento (incluso si es 'OTHER'), nombres (al menos cadena vacía),
+  // y el bloque autenticidad/calidad. El resto admite null para que el
+  // modelo pueda decir honestamente "no se ve" sin fabricar.
   required: [
-    'documentType', 'issuingCountry', 'givenNames', 'surnames', 'fullName',
-    'documentNumber', 'birthDate', 'expiryDate', 'issueDate', 'sex',
-    'nationality', 'mrz', 'authenticity', 'imageQuality', 'imageHints',
+    'documentType', 'givenNames', 'surnames', 'fullName',
+    'authenticity', 'imageQuality', 'imageHints',
   ],
   additionalProperties: false,
 };
