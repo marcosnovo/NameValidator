@@ -223,9 +223,11 @@ export class DocumentScanner {
 
     // ── PASO 3: Detectar TIPO de documento por hints multi-idioma.
     // Esto guía el orden de los parsers que probaremos.
+    // (Renombrado a `typeDetection` para no chocar con `detection` del
+    //  paso 1, que era el resultado de jscanify.)
     onProgress({ stage: 'detect-type', progress: 0 });
-    const detection = detectDocumentType(ocr.text);
-    result.detectedType = detection;
+    const typeDetection = detectDocumentType(ocr.text);
+    result.detectedType = typeDetection;
 
     // ── PASO 4: Parser de DNI ESPAÑOL (frontal con labels).
     onProgress({ stage: 'dni-front', progress: 0 });
