@@ -1,5 +1,12 @@
 // HALO Name Validator — frontend para GitHub Pages.
-// Importa el validador desde docs/lib/ (copia de src/ vía build:docs).
+//
+// 3 modos posibles para la capa AI (de mejor a peor para producción):
+//   ① PROXY     — la URL del proxy backend está configurada en localStorage.
+//                 La key vive en el servidor. Modo recomendado.
+//   ② DIRECT    — sólo hay API key en sessionStorage. El browser llama a
+//                 api.anthropic.com directamente. Sólo para demos.
+//   ③ STATIC    — ni proxy ni key. Sólo capas estáticas (formato + listas
+//                 + concat). Sigue siendo útil: pilla ~80% de los casos.
 
 import { validateName } from './lib/validator.js';
 
@@ -23,38 +30,84 @@ const rawJson = $('#raw-json');
 
 const settingsPanel = $('#settings-panel');
 const toggleSettings = $('#toggle-settings');
+const aiModePill = $('#ai-mode-pill');
+const aiModeDetail = $('#ai-mode-detail');
+
+// Proxy
+const proxyUrlInput = $('#proxy-url-input');
+const saveProxy = $('#save-proxy');
+const testProxy = $('#test-proxy');
+const clearProxy = $('#clear-proxy');
+const proxyStatus = $('#proxy-status');
+
+// Direct API key
 const apiKeyInput = $('#api-key-input');
 const saveApiKey = $('#save-api-key');
 const clearApiKey = $('#clear-api-key');
 const keyStatus = $('#key-status');
 
-// ── API key storage (sessionStorage = se borra al cerrar la pestaña) ────
-const KEY_STORE = 'halo-anthropic-key';
+// ── Storage helpers ─────────────────────────────────────────────────────
+// Proxy URL → localStorage (persiste entre sesiones; no es secreto).
+// API key   → sessionStorage (se borra al cerrar pestaña; sí es secreto).
+const PROXY_STORE = 'halo-proxy-url';
+const KEY_STORE   = 'halo-anthropic-key';
 
-function getStoredKey() {
-  try { return sessionStorage.getItem(KEY_STORE) || ''; }
-  catch { return ''; }
-}
-function setStoredKey(value) {
-  try { sessionStorage.setItem(KEY_STORE, value); } catch {}
-}
-function clearStoredKey() {
-  try { sessionStorage.removeItem(KEY_STORE); } catch {}
+const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
+
+const getProxyUrl = () => safe(() => localStorage.getItem(PROXY_STORE) || '', '');
+const setProxyUrl = (v) => safe(() => localStorage.setItem(PROXY_STORE, v));
+const clearProxyUrl = () => safe(() => localStorage.removeItem(PROXY_STORE));
+
+const getStoredKey = () => safe(() => sessionStorage.getItem(KEY_STORE) || '', '');
+const setStoredKey = (v) => safe(() => sessionStorage.setItem(KEY_STORE, v));
+const clearStoredKey = () => safe(() => sessionStorage.removeItem(KEY_STORE));
+
+// ── Mode detection & UI ─────────────────────────────────────────────────
+function activeMode() {
+  if (getProxyUrl()) return 'proxy';
+  if (getStoredKey()) return 'direct';
+  return 'static';
 }
 
-function refreshKeyStatus() {
+function refreshAIModeUI() {
+  const mode = activeMode();
+  aiModePill.classList.remove('proxy', 'direct', 'staticonly');
+
+  if (mode === 'proxy') {
+    aiModePill.classList.add('proxy');
+    aiModePill.textContent = '🟢 Proxy activo';
+    aiModeDetail.textContent = 'Capa AI vía proxy backend. La API key vive en el servidor.';
+  } else if (mode === 'direct') {
+    aiModePill.classList.add('direct');
+    aiModePill.textContent = '🟡 Browser-direct';
+    aiModeDetail.textContent = 'Capa AI activa, pero la key se envía desde este navegador. Sólo demos.';
+  } else {
+    aiModePill.classList.add('staticonly');
+    aiModePill.textContent = '⚪ Sólo capas estáticas';
+    aiModeDetail.textContent = 'Configura un backend proxy o una API key para activar la capa semántica.';
+  }
+
+  // Per-section hints
+  const url = getProxyUrl();
+  if (url) {
+    proxyStatus.textContent = `✓ Proxy configurado: ${url}`;
+    proxyStatus.style.color = 'var(--ok)';
+  } else {
+    proxyStatus.textContent = 'Sin proxy configurado.';
+    proxyStatus.style.color = 'var(--fg-dim)';
+  }
+
   const k = getStoredKey();
   if (k) {
-    keyStatus.textContent =
-      `✓ Clave cargada (sk-ant-…${k.slice(-6)}). La capa AI está activa para esta sesión.`;
-    keyStatus.style.color = 'var(--ok)';
+    keyStatus.textContent = `✓ Key cargada (sk-ant-…${k.slice(-6)}). Sólo válida en esta pestaña.`;
+    keyStatus.style.color = 'var(--warn)';
   } else {
-    keyStatus.textContent = 'Sin clave — la capa AI está deshabilitada.';
+    keyStatus.textContent = 'Sin clave directa.';
     keyStatus.style.color = 'var(--fg-dim)';
   }
 }
 
-// ── Validación ──────────────────────────────────────────────────────────
+// ── Validation ──────────────────────────────────────────────────────────
 async function validate() {
   const name = input.value.trim();
   if (!name) {
@@ -66,9 +119,12 @@ async function validate() {
   button.textContent = 'Validando…';
 
   try {
-    const apiKey = getStoredKey() || null;
+    const proxyUrl = getProxyUrl() || null;
+    const apiKey = proxyUrl ? null : (getStoredKey() || null);
+    // Precedencia: proxy > direct > static-only
     const data = await validateName(name, {
       skipAI: skipAI.checked,
+      proxyUrl,
       apiKey,
     });
     render(data);
@@ -119,7 +175,8 @@ function render(data) {
   metaLayers.textContent =
     `format=${ls.format_issues ?? 0} · ` +
     `static=${ls.static_issues ?? 0} · ` +
-    `ai=${ls.ai_run ? '✓' : ls.ai_skipped_due_to_static_block ? '⏭ (saltado por hit estático)' : '✗'}`;
+    `ai=${ls.ai_run ? '✓' : ls.ai_skipped_due_to_static_block ? '⏭ (saltado por hit estático)' : '✗'}` +
+    ` · mode=${activeMode()}`;
 
   rawJson.textContent = JSON.stringify(data, null, 2);
   result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -149,7 +206,7 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
-// ── Wiring ──────────────────────────────────────────────────────────────
+// ── Wiring: validate ────────────────────────────────────────────────────
 button.addEventListener('click', validate);
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') validate();
@@ -161,14 +218,59 @@ document.querySelectorAll('.ex').forEach((btn) => {
   });
 });
 
+// ── Wiring: settings panel toggle ───────────────────────────────────────
 toggleSettings.addEventListener('click', () => {
   settingsPanel.classList.toggle('hidden');
   if (!settingsPanel.classList.contains('hidden')) {
+    proxyUrlInput.value = getProxyUrl();
     apiKeyInput.value = getStoredKey();
-    apiKeyInput.focus();
   }
 });
 
+// ── Wiring: proxy URL ───────────────────────────────────────────────────
+saveProxy.addEventListener('click', () => {
+  const v = proxyUrlInput.value.trim();
+  if (!v) return;
+  if (!/^https?:\/\//i.test(v)) {
+    alert('La URL debe empezar por http:// o https://');
+    return;
+  }
+  setProxyUrl(v);
+  refreshAIModeUI();
+});
+
+testProxy.addEventListener('click', async () => {
+  const v = proxyUrlInput.value.trim() || getProxyUrl();
+  if (!v) {
+    alert('Pega primero una URL.');
+    return;
+  }
+  proxyStatus.textContent = '⏳ Probando…';
+  proxyStatus.style.color = 'var(--fg-dim)';
+  // El endpoint health vive en el path raíz del proxy, no en /api/ai-check
+  const healthUrl = v.replace(/\/api\/ai-check\/?$/, '/api/health');
+  try {
+    const r = await fetch(healthUrl, { method: 'GET' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    proxyStatus.textContent =
+      `✓ Conectado · model=${data.model ?? '?'} · ` +
+      `ai_layer=${data.ai_layer ? '✓' : '✗'}` +
+      (data.mode ? ` · ${data.mode}` : '');
+    proxyStatus.style.color = 'var(--ok)';
+  } catch (err) {
+    proxyStatus.textContent = `✗ No accesible: ${err?.message ?? err}`;
+    proxyStatus.style.color = 'var(--bad)';
+  }
+});
+
+clearProxy.addEventListener('click', () => {
+  clearProxyUrl();
+  proxyUrlInput.value = '';
+  refreshAIModeUI();
+});
+
+// ── Wiring: API key directa ─────────────────────────────────────────────
 saveApiKey.addEventListener('click', () => {
   const v = apiKeyInput.value.trim();
   if (!v) return;
@@ -177,14 +279,15 @@ saveApiKey.addEventListener('click', () => {
   }
   setStoredKey(v);
   apiKeyInput.value = '';
-  refreshKeyStatus();
+  refreshAIModeUI();
 });
 
 clearApiKey.addEventListener('click', () => {
   clearStoredKey();
   apiKeyInput.value = '';
-  refreshKeyStatus();
+  refreshAIModeUI();
 });
 
-refreshKeyStatus();
+// ── Boot ────────────────────────────────────────────────────────────────
+refreshAIModeUI();
 input.focus();

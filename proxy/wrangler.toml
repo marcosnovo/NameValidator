@@ -1,0 +1,20 @@
+# Configuración mínima para deploy del Worker vía CLI:
+#   cd proxy
+#   npm i -g wrangler   (sólo la primera vez)
+#   wrangler login      (sólo la primera vez)
+#   wrangler secret put ANTHROPIC_API_KEY   # te pide pegar la key
+#   wrangler deploy
+#
+# Si prefieres deploy zero-CLI por dashboard, ignora este fichero y sigue
+# las instrucciones del comentario inicial de cloudflare-worker.js.
+
+name = "halo-name-validator-proxy"
+main = "cloudflare-worker.js"
+compatibility_date = "2024-09-01"
+
+# CORS_ORIGINS NO se pone aquí porque debe coincidir con tu dominio de Pages.
+# Configúrala desde el dashboard (Settings → Variables) o con:
+#   wrangler deploy --var CORS_ORIGINS:https://<usuario>.github.io
+#
+# La API key debe ir como SECRET (no como var en texto plano):
+#   wrangler secret put ANTHROPIC_API_KEY

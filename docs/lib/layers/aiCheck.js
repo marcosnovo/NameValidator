@@ -1,18 +1,25 @@
 // Capa semántica: usa Claude Opus 4.7 vía fetch directo (universal — funciona
-// en Node 18+ y en navegadores modernos, sin SDK de por medio).
+// en Node 18+, navegadores y Cloudflare Workers, sin SDK de por medio).
 //
-// Optimizaciones:
-//  - Prompt caching: el system prompt es enorme y estable, así que se cachea
-//    con cache_control: ephemeral TTL 1h. La 2ª request paga ~10% del coste
-//    de input.
-//  - Adaptive thinking + effort:high para razonamiento fonético en 3 idiomas.
+// Hay dos modos:
+//
+//   1. PROXY MODE (recomendado para producción / GitHub Pages):
+//      El cliente pasa `proxyUrl`. La función hace POST al proxy con
+//      `{ input }` y devuelve la respuesta. La API key vive en el
+//      servidor, NO en el navegador.
+//
+//   2. DIRECT MODE (Node con env, o demo browser con sessionStorage):
+//      El cliente pasa `apiKey` (o se resuelve desde process.env). La
+//      función llama directamente a api.anthropic.com.
+//
+// Optimizaciones (sólo en direct mode):
+//  - Prompt caching del system prompt con TTL 1h.
+//  - Adaptive thinking + effort:high.
 //  - Output estructurado vía json_schema.
-//  - apiKey se pasa por parámetro: en Node viene de process.env, en browser
-//    el operador la introduce en un campo y la guardamos en sessionStorage.
 //
-// AVISO BROWSER: incluir tu API key en código que corre en el navegador la
-// expone a cualquier persona con acceso a esa pestaña. Para producción usa
-// un proxy backend; este modo browser es para PRUEBAS Y DEMOS.
+// AVISO BROWSER DIRECT MODE: incluir tu API key en código que corre en el
+// navegador la expone a cualquier persona con acceso a esa pestaña. El
+// modo proxy elimina esto enteramente.
 
 const SYSTEM_PROMPT = `Eres un sistema de moderación de nombres para el HALO del Santiago Bernabéu —
 un anillo de pantallas LED en lo alto del estadio del Real Madrid que muestra
@@ -240,11 +247,51 @@ function resolveApiKey(passed) {
 }
 
 export async function aiCheck(input, options = {}) {
+  // ── PROXY MODE ──────────────────────────────────────────────────────────
+  // Si el caller pasa proxyUrl, delegamos en el backend. La key vive ahí.
+  if (options.proxyUrl) {
+    let response;
+    try {
+      response = await fetch(options.proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input }),
+      });
+    } catch (err) {
+      return {
+        enabled: true,
+        mode: 'proxy',
+        error: `Proxy network error: ${err?.message ?? err}`,
+      };
+    }
+    if (!response.ok) {
+      let detail;
+      try { detail = await response.json(); } catch { detail = await response.text().catch(() => null); }
+      return {
+        enabled: true,
+        mode: 'proxy',
+        error: `Proxy HTTP ${response.status}`,
+        detail,
+      };
+    }
+    try {
+      const data = await response.json();
+      return { mode: 'proxy', ...data };
+    } catch (err) {
+      return {
+        enabled: true,
+        mode: 'proxy',
+        error: 'Respuesta del proxy no es JSON válido',
+      };
+    }
+  }
+
+  // ── DIRECT MODE ─────────────────────────────────────────────────────────
   const apiKey = resolveApiKey(options.apiKey);
   if (!apiKey) {
     return {
       enabled: false,
-      reason: 'API key no configurada',
+      reason: 'No hay proxyUrl ni apiKey configurados',
     };
   }
 
@@ -346,6 +393,7 @@ export async function aiCheck(input, options = {}) {
 
   return {
     enabled: true,
+    mode: 'direct',
     ...parsed,
     usage: {
       input_tokens: payload.usage?.input_tokens ?? 0,
@@ -355,3 +403,9 @@ export async function aiCheck(input, options = {}) {
     },
   };
 }
+
+// Exporto el SYSTEM_PROMPT y el RESPONSE_SCHEMA para que el Cloudflare Worker
+// pueda reutilizarlos sin duplicar el contenido. Si bundle-ar el src/ no es
+// posible (deploy zero-CLI desde el dashboard), copiar el contenido al
+// proxy/cloudflare-worker.js es el fallback.
+export { SYSTEM_PROMPT, RESPONSE_SCHEMA };

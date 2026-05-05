@@ -19,8 +19,9 @@
       <p class="meta-line">
         Versión <em>GitHub Pages</em> — corre 100% en tu navegador.
         El bundle estático (~700 nombres-broma + ~400 vulgares + jugadores
-        rivales) es gratis. La capa semántica (Claude Opus 4.7) requiere
-        que pegues tu API key abajo.
+        rivales) es gratis y siempre activo. La capa semántica (Claude
+        Opus 4.7) se activa configurando un <strong>backend proxy</strong>
+        (recomendado) o pegando tu API key directa (sólo para demos).
       </p>
     </header>
 
@@ -54,13 +55,41 @@
 
       <section class="panel settings hidden" id="settings-panel">
         <h3>Capa semántica (Claude Opus 4.7)</h3>
+        <p class="status-line">
+          <span class="status-pill" id="ai-mode-pill">Sólo capas estáticas</span>
+          <span id="ai-mode-detail">La capa AI está deshabilitada.</span>
+        </p>
+
+        <h4 class="settings-section">① Backend Proxy <span class="recommend">recomendado</span></h4>
+        <p class="settings-help">
+          Pega aquí la URL del proxy donde corre tu API key. Tu Cloudflare
+          Worker (<code>proxy/cloudflare-worker.js</code>) o tu Express
+          (<code>server.js</code>) deben exponer <code>POST /api/ai-check</code>
+          con CORS habilitado. Pasos: ver
+          <a href="https://github.com/marcosnovo/namevalidator/tree/main/proxy" target="_blank" rel="noopener">proxy/README.md</a>.
+          La URL queda en <code>localStorage</code> (persiste entre sesiones).
+        </p>
+        <div class="field">
+          <input
+            id="proxy-url-input"
+            type="url"
+            placeholder="https://halo-proxy.workers.dev/api/ai-check"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="save-proxy" type="button">Guardar</button>
+          <button id="test-proxy" type="button" class="ghost">Probar</button>
+          <button id="clear-proxy" type="button" class="ghost">Borrar</button>
+        </div>
+        <p class="hint" id="proxy-status">Sin proxy configurado.</p>
+
+        <h4 class="settings-section">② API Key Directa <span class="caution">sólo demos</span></h4>
         <p class="warn">
-          ⚠ <strong>Aviso de seguridad</strong>: pegar tu API key aquí la guarda
-          en <code>sessionStorage</code> de tu navegador (se borra al cerrar
-          la pestaña). Cualquier código que se ejecute en esta página puede
-          leerla. Esto es <strong>aceptable para pruebas y demos</strong>,
-          pero <strong>NO uses tu key de producción</strong>. Para producción
-          real monta un backend proxy (ver README).
+          ⚠ <strong>Sólo para pruebas</strong>: pegar tu API key aquí la
+          guarda en <code>sessionStorage</code> y se envía directa a
+          Anthropic desde este navegador. Cualquier código que se ejecute
+          en esta página puede leerla. <strong>NO uses tu key de
+          producción</strong> — usa la opción ① con un proxy.
         </p>
         <div class="field">
           <input
@@ -73,7 +102,7 @@
           <button id="save-api-key" type="button">Guardar</button>
           <button id="clear-api-key" type="button" class="ghost">Borrar</button>
         </div>
-        <p class="hint" id="key-status">Sin clave — la capa AI está deshabilitada.</p>
+        <p class="hint" id="key-status">Sin clave directa.</p>
       </section>
 
       <section class="panel result hidden" id="result">
