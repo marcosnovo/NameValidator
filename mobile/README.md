@@ -1,133 +1,109 @@
 # HALO Validator — App móvil (Flutter)
 
-App nativa para iOS + Android, pensada para que los operarios del Tour del Bernabéu validen los nombres del HALO directamente desde su móvil:
+App nativa para iOS + Android — operarios del Tour del Bernabéu validan los nombres del HALO desde su móvil.
 
-- ✅ Cliente HTTP del Cloudflare Worker existente (`/api/ai-check`, `/api/scan-document`, `/api/approve`, `/api/metrics`)
-- ✅ Format check local (Dart) — validación instantánea sin red
-- ✅ Multi-tenant (Real Madrid / FC Barcelona) seleccionable en ajustes
-- 🔜 Cámara + OCR on-device (VisionKit en iOS, MLKit en Android)
-- 🔜 NFC del DNI 3.0 con PACE/BAC (ICAO 9303)
-- 🔜 Biometric login del operario
-- ✅ Dashboard de métricas espejo del web (`docs/metrics.html`)
+## Setup inicial (5 minutos)
 
----
-
-## Estado del scaffold
-
-Lo que ya está implementado en este repo:
-
-```
-mobile/
-├── pubspec.yaml                  ← deps: riverpod, go_router, http, shared_prefs, crypto
-│                                  (nfc_manager, camera, mlkit, local_auth comentadas
-│                                   hasta su PR de implementación — ahorran ~1.5 GB de
-│                                   NDK + pods iOS pesados en la primera build)
-├── analysis_options.yaml
-├── .gitignore
-├── PERMISSIONS_SNIPPETS.md       ← lo que añadir a Info.plist + AndroidManifest
-├── README.md                     ← este archivo
-├── lib/
-│   ├── main.dart                 ← entry, ProviderScope + MaterialApp.router
-│   ├── app/
-│   │   ├── theme.dart            ← tema dark con paleta HALO
-│   │   ├── router.dart           ← go_router (Home / Scanner / Result / Approvals / Metrics)
-│   │   └── providers.dart        ← Riverpod: prefs, proxyUrl, operatorId, contextId, apiClient
-│   ├── core/
-│   │   ├── network/api_client.dart   ← cliente HTTP del Worker
-│   │   ├── storage/preferences_service.dart   ← shared_preferences wrapper
-│   │   ├── validator/format_check.dart   ← port del format check JS → Dart
-│   │   └── blocklists/           ← (vacío de momento, port futuro)
-│   └── features/
-│       ├── validator/
-│       │   ├── presentation/home_screen.dart
-│       │   ├── presentation/result_screen.dart
-│       │   └── presentation/settings_dialog.dart
-│       ├── scanner/presentation/scanner_screen.dart   ← placeholder
-│       ├── approvals/presentation/approvals_screen.dart   ← placeholder
-│       └── metrics/presentation/metrics_screen.dart    ← consume /api/metrics
-└── test/
-    └── format_check_test.dart    ← smoke test del port
-```
-
-Falta lo que `flutter create` genera: `ios/`, `android/`, `macos/`. **Eso lo creas tú** en el siguiente paso.
-
----
-
-## Setup inicial — primera vez
-
-### 1. Genera los proyectos nativos iOS + Android
-
-Desde `mobile/`:
+Después de clonar el repo, **un solo script** hace todo:
 
 ```bash
 cd mobile
-flutter create . \
-  --org com.realmadrid.halo \
-  --project-name halo_validator \
-  --platforms=ios,android,macos
+./scripts/setup.sh
 ```
 
-Esto crea las carpetas `ios/`, `android/`, `macos/` sin tocar `lib/`, `pubspec.yaml`, `test/`, etc.
+Ese script:
+1. Ejecuta `flutter create` (genera `ios/`, `android/`, `macos/`)
+2. `flutter pub get`
+3. `setup-ios.sh` — Podfile platform 15.5 + bypass codesign Tahoe + patch SDK + permisos Info.plist
+4. `setup-android.sh` — minSdk 23 + sin `ndkVersion` forzado + permisos manifest
+5. `pod install`
 
-> ⚠️ Si flutter te avisa de que sobrescribiría `pubspec.yaml`, di **No**. El que ya tenemos lleva todos los plugins.
+Idempotente — lo puedes ejecutar varias veces.
 
-### 2. Instala dependencias
+## Lanzar la app
+
+### Opción A — sin configuración previa
 
 ```bash
-flutter pub get
-cd ios && pod install && cd ..
+flutter run -d "iPhone 17"          # iOS Simulator
+# o
+flutter run -d emulator-5554        # Android emulator
 ```
 
-### 3. Aplica los snippets de permisos
+Una vez abre, pulsa el icono de ajustes (⚙) para configurar el proxy URL, ID de operario y contexto.
 
-Abre `PERMISSIONS_SNIPPETS.md` y mete los bloques en:
-- `ios/Runner/Info.plist`
-- `ios/Runner/Runner.entitlements` (créalo si no existe)
-- `android/app/src/main/AndroidManifest.xml`
-- `android/app/src/main/res/xml/nfc_tech_filter.xml` (créalo)
-- `android/app/build.gradle.kts` → `minSdk = 23`, `compileSdk = 36`
-- `ios/Podfile` → `platform :ios, '15.0'`
+### Opción B — auto-config con dart-define
 
-Y en Xcode: añade la capability "Near Field Communication Tag Reading" en Signing & Capabilities.
-
-### 4. Lanza la app
+Para que la app arranque ya conectada al Worker sin tocar nada:
 
 ```bash
-# Ver dispositivos disponibles
-flutter devices
-
-# iOS Simulator (necesitas Xcode abierto al menos una vez)
-open -a Simulator
-flutter run -d "iPhone 16"   # o el ID que te aparezca
-
-# Android emulator
-flutter emulators --launch halo_pixel7_arm64
-flutter run -d emulator-5554
-
-# Tu iPhone físico (cuando lo conectes con cable + Developer Mode)
-flutter run -d "iPhone Marcos"
+flutter run -d "iPhone 17" \
+  --dart-define=WORKER_URL=https://halo-proxy.tu-sub.workers.dev \
+  --dart-define=OPERATOR_ID=marcos \
+  --dart-define=CONTEXT_ID=real-madrid
 ```
 
-### 5. Configura el proxy
+Los valores se persisten en SharedPreferences la primera vez, así no necesitas pasarlos en cada `flutter run`.
 
-Una vez la app arranca:
+## Estructura del proyecto
 
-1. Pulsa el icono de ajustes (engranaje, esquina superior derecha)
-2. Pega la URL de tu Worker: `https://halo-proxy.<tu-sub>.workers.dev`
-3. Pulsa "Probar conexión" — debe responder `✓ AI activa · KV activa` (o lo que tengas configurado)
-4. Mete tu ID de operario (ej. `marcos.novo`)
-5. Selecciona contexto (`real-madrid` por defecto)
-6. Guardar
+```
+mobile/
+├── pubspec.yaml                    # deps (riverpod, go_router, http, shared_prefs, crypto)
+├── analysis_options.yaml           # strict casts/inference
+├── scripts/
+│   ├── setup.sh                    # entrypoint
+│   ├── setup-ios.sh                # iOS native config
+│   └── setup-android.sh            # Android native config
+├── lib/
+│   ├── main.dart
+│   ├── app/
+│   │   ├── theme.dart              # tema dark con paleta HALO LED
+│   │   ├── router.dart             # go_router
+│   │   └── providers.dart          # Riverpod providers + dart-define defaults
+│   ├── core/
+│   │   ├── network/api_client.dart # cliente del Worker (5 endpoints)
+│   │   ├── storage/preferences_service.dart
+│   │   └── validator/format_check.dart
+│   └── features/
+│       ├── validator/presentation/
+│       │   ├── home_screen.dart       # Hero LED + input + recientes
+│       │   ├── result_screen.dart     # Verdict card animado
+│       │   └── settings_dialog.dart
+│       ├── scanner/presentation/      # placeholder cámara/NFC
+│       ├── approvals/presentation/    # placeholder
+│       └── metrics/presentation/      # dashboard nativo del Worker
+└── test/
+    └── format_check_test.dart      # 8 casos golden
+```
 
----
+## Pantallas
 
-## Uso
+- **Home** — input principal con animación del HALO LED, validar, escanear, recientes en sesión.
+- **Result** — verdict card grande con barra de riesgo, lectura fonética, motivos detallados con severities, aprobación humana directa.
+- **Settings** — proxy URL + Probar conexión + ID operario + contexto (Real Madrid / FC Barcelona).
+- **Metrics** — espejo nativo del dashboard web. KPIs (cache hit %, latencia, errores), bar chart 14 días, distribuciones de veredictos y sources.
 
-- **Validar un nombre**: escribe en el campo de la home → "Validar". Si el formato es inválido se rechaza local, sin red. Si no, llama al Worker (con cache 1h KV).
-- **Aprobar manualmente**: si el resultado es REVIEW o SUSPICIOUS, aparece botón "Aprobar manualmente". Postea a `/api/approve`, propaga a todos los operarios vía KV global.
-- **Métricas**: icono de barras → ve KPIs (cache hit rate, latencia, errores) y distribución de veredictos/sources.
+## Roadmap
 
----
+Cada feature pesada se añade en su PR cuando toque, junto con su plugin en `pubspec.yaml` (descomentar la sección correspondiente):
+
+1. **Cámara + OCR on-device** — `camera` + `google_mlkit_text_recognition`. Sustituye Tesseract.js. Privacidad GDPR (la imagen no sale del dispositivo).
+2. **NFC del DNI 3.0** — `nfc_manager` con protocolo PACE/BAC ICAO 9303. Lectura cripto-firmada sub-segundo.
+3. **Port completo del validador a Dart** — `normalize.js` + 9 blocklists + contextos. Validación local sin red.
+4. **Biometric login** — `local_auth` Face ID / fingerprint del operario.
+5. **Offline mode** — sync KV de aprobaciones globales + validación local.
+
+## Hot reload
+
+Mientras corre `flutter run`:
+
+| Tecla | Acción |
+|---|---|
+| `r` | Hot reload (cambios en segundos) |
+| `R` | Hot restart (reinicia la app) |
+| `q` | Quit |
+| `h` | Lista de comandos |
 
 ## Tests
 
@@ -135,28 +111,25 @@ Una vez la app arranca:
 flutter test
 ```
 
-Por ahora sólo el smoke test del format check (8 casos). Conforme vayamos portando blocklists y contextos a Dart añadimos más cobertura.
-
----
-
-## Roadmap inmediato (tras este scaffold)
-
-1. **Cámara + OCR on-device** — `camera` + `google_mlkit_text_recognition`. Reemplaza Tesseract.js de la web. Privacidad GDPR (la imagen no sale del dispositivo). Descomenta sus líneas en `pubspec.yaml` y `flutter pub get` cuando empiece esta PR.
-2. **NFC del DNI 3.0** — `nfc_manager` + implementación de PACE/BAC ICAO 9303. Lectura cripto-firmada del chip, sub-segundo.
-3. **Port completo del validador a Dart** — `src/normalize.js` + blocklists ES/EN/FR/PT/DE/IT/RU/PL/AR + contextos. Validación local sin red.
-4. **Biometric login** — `local_auth` para Face ID / fingerprint del operario.
-5. **Offline mode** — sync de aprobaciones globales en `shared_preferences`, validación local sin red.
-
-> **Nota sobre dependencias diferidas**: las primeras 4 features arriba arrastran código nativo (NDK Android ~1.5 GB, pods iOS pesados). Por eso el `pubspec.yaml` mantiene `camera`, `google_mlkit_text_recognition`, `nfc_manager` y `local_auth` **comentadas** hasta el momento de implementar cada feature. Esto baja el tiempo de la primera build de 30+ min a 2-4 min y permite validar la app base rápido. Cada PR de feature des-comenta su plugin correspondiente.
-
----
+8 casos golden del format check Dart.
 
 ## Arquitectura
 
-- **Estado**: Riverpod (`flutter_riverpod`)
-- **Navegación**: `go_router`
-- **Red**: `http` directo (sin axios/dio para mantener bundle pequeño)
+- **State**: `flutter_riverpod`
+- **Routing**: `go_router`
+- **Red**: `http` directo
 - **Persistencia**: `shared_preferences`
-- **Cripto**: `crypto` (SHA-256 para hash de aprobaciones, mismo algoritmo que el Worker)
+- **Cripto**: `crypto` (SHA-256, mismo algoritmo que el Worker)
+- **Tema**: Material 3 dark con paleta HALO (navy + violeta accent + verdict colors).
 
-Convención de carpetas: feature-first. Cada feature tiene su `domain/`, `data/` y `presentation/` cuando crece. Los providers globales viven en `app/providers.dart`.
+Convención feature-first. Domain/data/presentation cuando una feature crece.
+
+## Workers Cloudflare
+
+La lógica heavy (blocklists 9-idiomas, contextos multi-tenant, AI semántica con Claude, métricas KV) sigue en `proxy/cloudflare-worker.js` del repo padre. La app móvil consume esos endpoints:
+
+- `GET /api/health`
+- `POST /api/ai-check` — validación con cache 1h KV
+- `POST /api/scan-document` — Vision OCR (cuando se implemente la cámara)
+- `POST /api/approve` — aprobación global del operario
+- `GET /api/metrics` — dashboard 14 días
