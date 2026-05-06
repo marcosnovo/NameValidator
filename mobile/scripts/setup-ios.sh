@@ -21,6 +21,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MOBILE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Auto-detect Flutter (bash no hereda PATH del ~/.zshrc del usuario)
+if ! command -v flutter >/dev/null 2>&1; then
+  for candidate in \
+    "$HOME/Documents/develop/flutter/bin" \
+    "$HOME/develop/flutter/bin" \
+    "$HOME/flutter/bin" \
+    "$HOME/development/flutter/bin" \
+    "$HOME/.fvm/default/bin" \
+    "/opt/homebrew/bin" \
+    "/usr/local/bin"; do
+    if [ -x "$candidate/flutter" ]; then
+      export PATH="$candidate:$PATH"
+      break
+    fi
+  done
+fi
+
 echo "▸ HALO Validator — setup-ios.sh"
 echo "  mobile/ = $MOBILE_DIR"
 
