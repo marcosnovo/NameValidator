@@ -1,11 +1,10 @@
 /// ────────────────────────────────────────────────────────────────────────
-///  Pantalla de aprobaciones — listado simple (placeholder por ahora).
+///  Aprobaciones — placeholder hasta endpoint /api/approvals
 /// ────────────────────────────────────────────────────────────────────────
-///
-/// TODO: leer del KV global del Worker (necesita endpoint /api/approvals que
-/// aún no existe — lo añadimos cuando integremos).
 
 import 'package:flutter/material.dart';
+
+import '../../../app/theme.dart';
 
 class ApprovalsScreen extends StatelessWidget {
   const ApprovalsScreen({super.key});
@@ -14,13 +13,47 @@ class ApprovalsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Aprobaciones')),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Aquí se listarán las aprobaciones manuales registradas por todos los '
-            'operarios (KV global del Worker). Próximamente.',
-            textAlign: TextAlign.center,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: HaloColors.accent.withValues(alpha: 0.10),
+                    border: Border.all(
+                      color: HaloColors.accent.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(Icons.history_toggle_off_rounded,
+                      color: HaloColors.accent, size: 32),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Histórico de aprobaciones',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Aquí verás las aprobaciones manuales del operario propagadas '
+                  'al KV global. Próximamente — necesita un endpoint '
+                  '/api/approvals que aún no está expuesto.',
+                  style: TextStyle(
+                    color: HaloColors.fgMuted,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),
