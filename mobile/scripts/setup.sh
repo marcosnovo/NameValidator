@@ -24,9 +24,36 @@ echo "  HALO Validator — setup.sh"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-# ── Verificar Flutter ─────────────────────────────────────────────────
-if ! command -v flutter >/dev/null 2>&1; then
-  echo "✗ flutter no está en PATH. Verifica tu instalación del SDK."
+# ── Detectar Flutter en PATH o en ubicaciones comunes ────────────────
+# El script se ejecuta como bash (no zsh), así que no hereda los
+# `export PATH=...` del ~/.zshrc del usuario. Probamos rutas típicas.
+detect_flutter() {
+  if command -v flutter >/dev/null 2>&1; then return 0; fi
+
+  for candidate in \
+    "$HOME/Documents/develop/flutter/bin" \
+    "$HOME/develop/flutter/bin" \
+    "$HOME/flutter/bin" \
+    "$HOME/development/flutter/bin" \
+    "$HOME/.fvm/default/bin" \
+    "/opt/homebrew/bin" \
+    "/usr/local/bin"; do
+    if [ -x "$candidate/flutter" ]; then
+      export PATH="$candidate:$PATH"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+if ! detect_flutter; then
+  echo "✗ No encuentro flutter en PATH ni en ubicaciones comunes."
+  echo ""
+  echo "Soluciones:"
+  echo "  1. Pasa el PATH explícitamente al script:"
+  echo "     PATH=\"\$HOME/Documents/develop/flutter/bin:\$PATH\" ./scripts/setup.sh"
+  echo "  2. O abre una nueva terminal donde 'which flutter' funcione."
   exit 1
 fi
 echo "✓ flutter detectado: $(flutter --version | head -1)"
