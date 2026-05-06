@@ -18,7 +18,10 @@ Lo que ya está implementado en este repo:
 
 ```
 mobile/
-├── pubspec.yaml                  ← deps: nfc_manager, camera, mlkit, riverpod, go_router
+├── pubspec.yaml                  ← deps: riverpod, go_router, http, shared_prefs, crypto
+│                                  (nfc_manager, camera, mlkit, local_auth comentadas
+│                                   hasta su PR de implementación — ahorran ~1.5 GB de
+│                                   NDK + pods iOS pesados en la primera build)
 ├── analysis_options.yaml
 ├── .gitignore
 ├── PERMISSIONS_SNIPPETS.md       ← lo que añadir a Info.plist + AndroidManifest
@@ -138,11 +141,13 @@ Por ahora sólo el smoke test del format check (8 casos). Conforme vayamos porta
 
 ## Roadmap inmediato (tras este scaffold)
 
-1. **Cámara + OCR on-device** — `camera` + `google_mlkit_text_recognition`. Reemplaza Tesseract.js de la web. Privacidad GDPR (la imagen no sale del dispositivo).
+1. **Cámara + OCR on-device** — `camera` + `google_mlkit_text_recognition`. Reemplaza Tesseract.js de la web. Privacidad GDPR (la imagen no sale del dispositivo). Descomenta sus líneas en `pubspec.yaml` y `flutter pub get` cuando empiece esta PR.
 2. **NFC del DNI 3.0** — `nfc_manager` + implementación de PACE/BAC ICAO 9303. Lectura cripto-firmada del chip, sub-segundo.
 3. **Port completo del validador a Dart** — `src/normalize.js` + blocklists ES/EN/FR/PT/DE/IT/RU/PL/AR + contextos. Validación local sin red.
 4. **Biometric login** — `local_auth` para Face ID / fingerprint del operario.
 5. **Offline mode** — sync de aprobaciones globales en `shared_preferences`, validación local sin red.
+
+> **Nota sobre dependencias diferidas**: las primeras 4 features arriba arrastran código nativo (NDK Android ~1.5 GB, pods iOS pesados). Por eso el `pubspec.yaml` mantiene `camera`, `google_mlkit_text_recognition`, `nfc_manager` y `local_auth` **comentadas** hasta el momento de implementar cada feature. Esto baja el tiempo de la primera build de 30+ min a 2-4 min y permite validar la app base rápido. Cada PR de feature des-comenta su plugin correspondiente.
 
 ---
 
