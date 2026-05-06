@@ -1,0 +1,52 @@
+name: halo_validator
+description: HALO Name Validator — app móvil para operarios del Tour del Bernabéu.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # ── Routing
+  go_router: ^14.6.1
+
+  # ── State management
+  flutter_riverpod: ^2.6.1
+
+  # ── HTTP al Cloudflare Worker
+  http: ^1.2.2
+
+  # ── Persistencia local
+  shared_preferences: ^2.3.2
+
+  # ── Cámara + OCR on-device (Apple VisionKit/Android MLKit subyacente)
+  camera: ^0.11.0+2
+  google_mlkit_text_recognition: ^0.14.0
+
+  # ── NFC para DNI 3.0 (Android IsoDep / iOS CoreNFC)
+  # nfc_manager expone bajo nivel suficiente para implementar PACE/BAC del ICAO 9303.
+  nfc_manager: ^3.5.0+1
+
+  # ── Biometría para login del operario
+  local_auth: ^2.3.0
+
+  # ── Utilidades
+  crypto: ^3.0.6              # SHA-256 para hash de aprobaciones
+  intl: ^0.19.0               # formateo de fechas en el dashboard de métricas
+  collection: ^1.18.0         # GroupBy, equality helpers
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # assets:
+  #   - assets/icons/
