@@ -21,6 +21,12 @@ import { arabicProfanity, arabicJokeNames, arabicExactOnly } from '../blocklists
 import { greekProfanity, greekJokeNames, greekExactOnly } from '../blocklists/greek.js';
 import { turkishProfanity, turkishJokeNames, turkishExactOnly } from '../blocklists/turkish.js';
 import { romanianProfanity, romanianJokeNames, romanianExactOnly } from '../blocklists/romanian.js';
+import { chineseProfanity, chineseJokeNames, chineseExactOnly } from '../blocklists/chinese.js';
+import { japaneseProfanity, japaneseJokeNames, japaneseExactOnly } from '../blocklists/japanese.js';
+import { koreanProfanity, koreanJokeNames, koreanExactOnly } from '../blocklists/korean.js';
+import { hebrewProfanity, hebrewJokeNames, hebrewExactOnly } from '../blocklists/hebrew.js';
+import { hungarianProfanity, hungarianJokeNames, hungarianExactOnly } from '../blocklists/hungarian.js';
+import { dutchProfanity, dutchJokeNames, dutchExactOnly } from '../blocklists/dutch.js';
 import { spanishExternal } from '../blocklists/external/es.js';
 import { englishExternal } from '../blocklists/external/en.js';
 import { frenchExternal } from '../blocklists/external/fr.js';
@@ -43,6 +49,7 @@ import {
   phoneticEs, phoneticEn, phoneticFr, phoneticPt,
   phoneticDe, phoneticIt, phoneticRu, phoneticPl, phoneticAr,
   phoneticEl, phoneticTr, phoneticRo,
+  phoneticZh, phoneticJa, phoneticKo, phoneticHe, phoneticHu, phoneticNl,
 } from '../normalize.js';
 import { buildAhoCorasick } from '../lib/ahoCorasick.js';
 import { fuzzyContains } from '../lib/fuzzyMatch.js';
@@ -61,6 +68,12 @@ const PHONETIC_FN = {
   el: phoneticEl,
   tr: phoneticTr,
   ro: phoneticRo,
+  zh: phoneticZh,
+  ja: phoneticJa,
+  ko: phoneticKo,
+  he: phoneticHe,
+  hu: phoneticHu,
+  nl: phoneticNl,
 };
 
 // Aplana todas las palabras-broma a sus formas concatenadas y precalcula
@@ -79,6 +92,12 @@ const jokeForms = [
   ...greekJokeNames.map(([form, why]) => ({ form, why, lang: 'el', phonetic: phoneticEl(form) })),
   ...turkishJokeNames.map(([form, why]) => ({ form, why, lang: 'tr', phonetic: phoneticTr(form) })),
   ...romanianJokeNames.map(([form, why]) => ({ form, why, lang: 'ro', phonetic: phoneticRo(form) })),
+  ...chineseJokeNames.map(([form, why]) => ({ form, why, lang: 'zh', phonetic: phoneticZh(form) })),
+  ...japaneseJokeNames.map(([form, why]) => ({ form, why, lang: 'ja', phonetic: phoneticJa(form) })),
+  ...koreanJokeNames.map(([form, why]) => ({ form, why, lang: 'ko', phonetic: phoneticKo(form) })),
+  ...hebrewJokeNames.map(([form, why]) => ({ form, why, lang: 'he', phonetic: phoneticHe(form) })),
+  ...hungarianJokeNames.map(([form, why]) => ({ form, why, lang: 'hu', phonetic: phoneticHu(form) })),
+  ...dutchJokeNames.map(([form, why]) => ({ form, why, lang: 'nl', phonetic: phoneticNl(form) })),
 ];
 
 // ─── Aho-Corasick: pre-construido al cargar el módulo ─────────────────────
@@ -115,6 +134,12 @@ const acAR = buildLangAC(arabicProfanity, [], arabicExactOnly);
 const acEL = buildLangAC(greekProfanity, [], greekExactOnly);
 const acTR = buildLangAC(turkishProfanity, [], turkishExactOnly);
 const acRO = buildLangAC(romanianProfanity, [], romanianExactOnly);
+const acZH = buildLangAC(chineseProfanity, [], chineseExactOnly);
+const acJA = buildLangAC(japaneseProfanity, [], japaneseExactOnly);
+const acKO = buildLangAC(koreanProfanity, [], koreanExactOnly);
+const acHE = buildLangAC(hebrewProfanity, [], hebrewExactOnly);
+const acHU = buildLangAC(hungarianProfanity, [], hungarianExactOnly);
+const acNL = buildLangAC(dutchProfanity, [], dutchExactOnly);
 
 // AC fonético (mismas listas pero con cada palabra transformada)
 const acESPhonetic = buildAhoCorasick(
@@ -177,17 +202,50 @@ const acROPhonetic = buildAhoCorasick(
     .filter((w) => typeof w === 'string' && !romanianExactOnly.has(w) && w.length >= 3)
     .map((w) => [phoneticRo(w.replace(/\s/g, '')), w])
 );
+const acZHPhonetic = buildAhoCorasick(
+  chineseProfanity
+    .filter((w) => typeof w === 'string' && !chineseExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticZh(w.replace(/\s/g, '')), w])
+);
+const acJAPhonetic = buildAhoCorasick(
+  japaneseProfanity
+    .filter((w) => typeof w === 'string' && !japaneseExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticJa(w.replace(/\s/g, '')), w])
+);
+const acKOPhonetic = buildAhoCorasick(
+  koreanProfanity
+    .filter((w) => typeof w === 'string' && !koreanExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticKo(w.replace(/\s/g, '')), w])
+);
+const acHEPhonetic = buildAhoCorasick(
+  hebrewProfanity
+    .filter((w) => typeof w === 'string' && !hebrewExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticHe(w.replace(/\s/g, '')), w])
+);
+const acHUPhonetic = buildAhoCorasick(
+  hungarianProfanity
+    .filter((w) => typeof w === 'string' && !hungarianExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticHu(w.replace(/\s/g, '')), w])
+);
+const acNLPhonetic = buildAhoCorasick(
+  dutchProfanity
+    .filter((w) => typeof w === 'string' && !dutchExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticNl(w.replace(/\s/g, '')), w])
+);
 
 const acByLang = {
   es: acES, en: acEN, fr: acFR, pt: acPT,
   de: acDE, it: acIT, ru: acRU, pl: acPL, ar: acAR,
   el: acEL, tr: acTR, ro: acRO,
+  zh: acZH, ja: acJA, ko: acKO, he: acHE, hu: acHU, nl: acNL,
 };
 const acPhoneticByLang = {
   es: acESPhonetic, en: acENPhonetic, fr: acFRPhonetic, pt: acPTPhonetic,
   de: acDEPhonetic, it: acITPhonetic,
   ru: acRUPhonetic, pl: acPLPhonetic, ar: acARPhonetic,
   el: acELPhonetic, tr: acTRPhonetic, ro: acROPhonetic,
+  zh: acZHPhonetic, ja: acJAPhonetic, ko: acKOPhonetic,
+  he: acHEPhonetic, hu: acHUPhonetic, nl: acNLPhonetic,
 };
 
 // AC para joke names (todos los idiomas en uno, con metadata del idioma)
@@ -444,6 +502,12 @@ export function staticCheck(variants, options = {}) {
   checkProfanityList(greekProfanity,      greekExactOnly,      'el', variants, issues);
   checkProfanityList(turkishProfanity,    turkishExactOnly,    'tr', variants, issues);
   checkProfanityList(romanianProfanity,   romanianExactOnly,   'ro', variants, issues);
+  checkProfanityList(chineseProfanity,    chineseExactOnly,    'zh', variants, issues);
+  checkProfanityList(japaneseProfanity,   japaneseExactOnly,   'ja', variants, issues);
+  checkProfanityList(koreanProfanity,     koreanExactOnly,     'ko', variants, issues);
+  checkProfanityList(hebrewProfanity,     hebrewExactOnly,     'he', variants, issues);
+  checkProfanityList(hungarianProfanity,  hungarianExactOnly,  'hu', variants, issues);
+  checkProfanityList(dutchProfanity,      dutchExactOnly,      'nl', variants, issues);
 
   // ── Nombres-broma conocidos — Aho-Corasick directo + fonético ───────────
   // O(n+matches) en vez de iterar 700 patrones. Sin Scunthorpe whitelist
@@ -455,7 +519,7 @@ export function staticCheck(variants, options = {}) {
       // Match fonético — buscamos en cada vista fonética con el AC del
       // idioma original del nombre (los joke names ES → phoneticEs, etc.)
       // Como acJokesPhonetic mezcla idiomas, intentamos en cada vista.
-      for (const lang of ['es', 'en', 'fr', 'pt', 'de', 'it', 'ru', 'pl', 'ar', 'el', 'tr', 'ro']) {
+      for (const lang of ['es', 'en', 'fr', 'pt', 'de', 'it', 'ru', 'pl', 'ar', 'el', 'tr', 'ro', 'zh', 'ja', 'ko', 'he', 'hu', 'nl']) {
         const view = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
         if (!view) continue;
         m = acJokesPhonetic.firstMatch(view);

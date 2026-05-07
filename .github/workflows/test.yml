@@ -32,6 +32,12 @@ jobs:
           node --check src/blocklists/greek.js
           node --check src/blocklists/turkish.js
           node --check src/blocklists/romanian.js
+          node --check src/blocklists/chinese.js
+          node --check src/blocklists/japanese.js
+          node --check src/blocklists/korean.js
+          node --check src/blocklists/hebrew.js
+          node --check src/blocklists/hungarian.js
+          node --check src/blocklists/dutch.js
           node --check src/blocklists/historicalFigures.js
           node --check src/contexts/index.js
           node --check src/contexts/realMadrid.js
