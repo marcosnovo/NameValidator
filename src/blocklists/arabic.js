@@ -70,7 +70,7 @@ export const arabicJokeNames = [
 ];
 
 export const arabicExactOnly = new Set([
-  'kos', 'kuss',     // muy cortos, FP en otros idiomas
+  'kos', 'kuss', 'koss',  // muy cortos / colapsan en fonético, FP en apellidos griegos (-kos / -akos)
   'air',             // colisiona con inglés "air"
   'zob',             // muy corto
   'tiz', 'teez',

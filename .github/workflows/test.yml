@@ -29,6 +29,9 @@ jobs:
           node --check src/blocklists/russian.js
           node --check src/blocklists/polish.js
           node --check src/blocklists/arabic.js
+          node --check src/blocklists/greek.js
+          node --check src/blocklists/turkish.js
+          node --check src/blocklists/romanian.js
           node --check src/blocklists/historicalFigures.js
           node --check src/contexts/index.js
           node --check src/contexts/realMadrid.js
