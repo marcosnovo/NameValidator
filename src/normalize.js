@@ -261,6 +261,54 @@ function phoneticPl(s) {
     .replace(/([bcdfgklmnprstvz])\1/g, '$1');
 }
 
+// Griego transliterado. Equivalencias clave:
+//   - th → t (los griegos suelen reducir θ → t en transliteración)
+//   - ph → f (φ → f)
+//   - ch → x ↔ k ("Christos" / "Xristos" / "Kristos")
+//   - kh → x → h
+//   - ou → u (ου = u)
+//   - ai → e (αι = e)
+//   - ei → i (ει = i)
+//   - oi → i (οι = i)
+//   - dobles colapsadas
+function phoneticEl(s) {
+  if (!s) return '';
+  return s
+    .replace(/th/g, 't')
+    .replace(/ph/g, 'f')
+    .replace(/ch/g, 'x')
+    .replace(/kh/g, 'h')
+    .replace(/ou/g, 'u')
+    .replace(/ai/g, 'e')
+    .replace(/ei/g, 'i')
+    .replace(/oi/g, 'i')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Turco. Equivalencias clave:
+//   - ş → s, ç → c (ya los hace stripDiacritics)
+//   - ı → i (también stripDiacritics)
+//   - ğ → '' (g muda — frecuente)
+//   - dobles colapsadas
+function phoneticTr(s) {
+  if (!s) return '';
+  return s
+    .replace(/ğ/g, '')
+    .replace(/ş/g, 's')
+    .replace(/ç/g, 'c')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Rumano. Equivalencias clave:
+//   - ă → a, î → i, â → a (ya stripDiacritics)
+//   - ș → s, ț → t (ya stripDiacritics)
+//   - dobles colapsadas
+function phoneticRo(s) {
+  if (!s) return '';
+  return s
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
 // Árabe transliterado. Pillamos variantes muy comunes en "Arabizi":
 //   - 3 → a (sustitución típica de la letra ع ain)
 //   - 7 → h (sustitución típica de la letra ح)
@@ -336,6 +384,9 @@ function buildVariants(raw) {
   const phoneticRuView = phoneticRu(concatNoSpaces);
   const phoneticPlView = phoneticPl(concatNoSpaces);
   const phoneticArView = phoneticAr(concatNoSpaces);
+  const phoneticElView = phoneticEl(concatNoSpaces);
+  const phoneticTrView = phoneticTr(concatNoSpaces);
+  const phoneticRoView = phoneticRo(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -358,6 +409,9 @@ function buildVariants(raw) {
     phoneticRu: phoneticRuView, //   kh→h→x, tch→ch, sh, zh→j
     phoneticPl: phoneticPlView, //   cz→ch, sz→sh, rz→zh, dz→z
     phoneticAr: phoneticArView, //   3→a, 7→h, 9→q (Arabizi)
+    phoneticEl: phoneticElView, //   th→t, ph→f, ch→x, ou→u, ai→e
+    phoneticTr: phoneticTrView, //   ğ muda, ş→s, ç→c
+    phoneticRo: phoneticRoView, //   dobles colapsadas (latino simple)
     tokens,               // ['aitor', 'tilla']
   };
 }
@@ -377,4 +431,7 @@ export {
   phoneticRu,
   phoneticPl,
   phoneticAr,
+  phoneticEl,
+  phoneticTr,
+  phoneticRo,
 };

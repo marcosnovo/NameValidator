@@ -111,10 +111,19 @@ function refreshAIModeUI() {
   proxyStatus.style.color = getProxyUrl() ? 'var(--ok)' : 'var(--fg-dim)';
 
   const k = getStoredKey();
-  keyStatus.textContent = k
-    ? `✓ Clave cargada (…${k.slice(-6)}). Sólo válida en esta pestaña.`
-    : 'Sin clave directa.';
-  keyStatus.style.color = k ? 'var(--warn)' : 'var(--fg-dim)';
+  if (k) {
+    const prov = detectProviderFromKey(k);
+    const providerLabel = {
+      anthropic: 'Claude (Anthropic)',
+      openai: 'GPT (OpenAI)',
+      google: 'Gemini (Google)',
+    }[prov] || 'Desconocido';
+    keyStatus.textContent = `✓ ${providerLabel} (…${k.slice(-6)}) · sólo en esta pestaña`;
+    keyStatus.style.color = 'var(--warn)';
+  } else {
+    keyStatus.textContent = 'Sin clave directa.';
+    keyStatus.style.color = 'var(--fg-dim)';
+  }
 
   const reviewer = getReviewer();
   reviewerStatus.textContent = reviewer
@@ -506,13 +515,25 @@ clearProxyBtn.addEventListener('click', () => {
 saveApiKeyBtn.addEventListener('click', () => {
   const v = apiKeyInput.value.trim();
   if (!v) return;
-  if (!v.startsWith('sk-ant-')) {
-    if (!confirm('La clave no comienza por "sk-ant-". ¿Guardar de todos modos?')) return;
+  // Auto-detección de provider — sólo avisamos si el formato es claramente
+  // sospechoso (key vacía, demasiado corta, espacios). Aceptamos cualquier
+  // provider: Anthropic (sk-ant-), OpenAI (sk-), Google (AIza... u otro).
+  if (v.length < 16 || /\s/.test(v)) {
+    if (!confirm('La clave parece inválida (muy corta o con espacios). ¿Guardar de todos modos?')) return;
   }
   setStoredKey(v);
   apiKeyInput.value = '';
   refreshAIModeUI();
 });
+
+// Auto-detección del provider — debe coincidir con detectProvider() de
+// src/layers/aiCheck.js. Mantener sincronizado.
+function detectProviderFromKey(key) {
+  if (typeof key !== 'string' || !key) return 'anthropic';
+  if (key.startsWith('sk-ant-')) return 'anthropic';
+  if (key.startsWith('sk-')) return 'openai';
+  return 'google';
+}
 clearApiKeyBtn.addEventListener('click', () => {
   clearStoredKey();
   apiKeyInput.value = '';

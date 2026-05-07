@@ -403,6 +403,95 @@ export const historicalFigures = [
     era: '1962-1988',
     why: 'Ne Win — dictador militar birmano.',
   },
+  // ─── Junta militar griega de los Coroneles (1967-1974) ────────────────
+  {
+    names: ['Georgios Papadopoulos', 'Yorgos Papadopoulos'],
+    era: '1967-1974',
+    why: 'Georgios Papadopoulos — líder de la Junta Militar griega de los Coroneles tras el golpe de 1967.',
+  },
+  {
+    names: ['Stylianos Pattakos'],
+    era: '1967-1974',
+    why: 'Stylianos Pattakos — uno de los tres coroneles de la Junta griega.',
+  },
+  {
+    names: ['Nikolaos Makarezos'],
+    era: '1967-1974',
+    why: 'Nikolaos Makarezos — uno de los tres coroneles de la Junta griega.',
+  },
+  {
+    names: ['Dimitrios Ioannidis'],
+    era: '1973-1974',
+    why: 'Dimitrios Ioannidis — sucesor de Papadopoulos en la Junta, responsable del golpe de Chipre de 1974.',
+  },
+  {
+    names: ['Ioannis Metaxas', 'Yannis Metaxas'],
+    era: '1936-1941',
+    why: 'Ioannis Metaxas — dictador griego del régimen del 4 de Agosto.',
+  },
+
+  // ─── Aurora Dorada (Golden Dawn — neonazis griegos) ────────────────────
+  {
+    names: ['Nikolaos Michaloliakos', 'Nikos Michaloliakos'],
+    era: '1985-presente',
+    why: 'Nikolaos Michaloliakos — fundador de Aurora Dorada (Χρυσή Αυγή), partido neonazi griego declarado organización criminal en 2020.',
+  },
+
+  // ─── Imperio Otomano / Genocidio armenio ──────────────────────────────
+  {
+    names: ['Talat Pasha', 'Talat Pașa', 'Mehmed Talat'],
+    era: '1913-1918',
+    why: 'Talat Pasha — Gran Visir otomano, principal arquitecto del genocidio armenio (1915-1923).',
+  },
+  {
+    names: ['Enver Pasha', 'Enver Pașa'],
+    era: '1913-1922',
+    why: 'Enver Pasha — ministro de guerra otomano, también responsable del genocidio armenio.',
+  },
+  {
+    names: ['Djemal Pasha', 'Cemal Pașa'],
+    era: '1913-1918',
+    why: 'Djemal Pasha — el tercer Gran Visir otomano del Triunvirato responsable del genocidio armenio.',
+  },
+
+  // ─── Dictadores turcos modernos / golpistas ───────────────────────────
+  {
+    names: ['Kenan Evren'],
+    era: '1980-1989',
+    why: 'Kenan Evren — líder del golpe de estado militar turco de 1980, presidente de Turquía hasta 1989.',
+  },
+
+  // ─── Iron Guard rumano (Legionarios) ──────────────────────────────────
+  {
+    names: ['Corneliu Zelea Codreanu', 'Corneliu Codreanu'],
+    era: '1927-1938',
+    why: 'Corneliu Zelea Codreanu — fundador de la Guardia de Hierro rumana, fascista antisemita.',
+  },
+  {
+    names: ['Horia Sima'],
+    era: '1938-1946',
+    why: 'Horia Sima — sucesor de Codreanu al frente de la Guardia de Hierro.',
+  },
+  // (Ion Antonescu ya está en la sección de Nazis/Eje WWII)
+
+  // ─── Dictadores búlgaros / yugoeslavos / euroorientales ───────────────
+  {
+    names: ['Todor Zhivkov'],
+    era: '1954-1989',
+    why: 'Todor Zhivkov — dictador comunista búlgaro durante 35 años.',
+  },
+  {
+    names: ['Enver Hoxha', 'Enver Hodja'],
+    era: '1944-1985',
+    why: 'Enver Hoxha — dictador comunista totalitario de Albania.',
+  },
+
+  // ─── Apología religiosa terrorista (sin entrar en figuras mainstream) ─
+  {
+    names: ['Ayatollah Khomeini', 'Ruhollah Khomeini'],
+    era: '1979-1989',
+    why: 'Ayatolá Khomeini — líder supremo iraní tras la Revolución; ordenó ejecuciones masivas y la fatua contra Salman Rushdie.',
+  },
   {
     names: ['Hirohito', 'Emperador Hirohito', 'Showa'],
     era: '1926-1989',
@@ -1354,6 +1443,25 @@ export const HISTORICAL_RARE_SURNAMES = new Map([
   ['pavelic',    'apellido del líder ustaše Ante Pavelić.'],
   ['pavelić',    'apellido del líder ustaše Ante Pavelić.'],
   ['antonescu',  'apellido del dictador fascista rumano Ion Antonescu.'],
+  // ── Junta griega + Aurora Dorada
+  ['papadopoulos', 'apellido del líder de la Junta griega Georgios Papadopoulos.'],
+  ['pattakos',     'apellido del coronel de la Junta griega Stylianos Pattakos.'],
+  ['makarezos',    'apellido del coronel de la Junta griega Nikolaos Makarezos.'],
+  ['ioannidis',    'apellido del jefe de la fase final de la Junta griega Dimitrios Ioannidis.'],
+  ['michaloliakos','apellido del fundador de Aurora Dorada Nikolaos Michaloliakos.'],
+  ['metaxas',      'apellido del dictador griego Ioannis Metaxas.'],
+  // ── Imperio Otomano (genocidio armenio)
+  ['talat',        'apellido del Gran Visir otomano Talat Pasha (genocidio armenio).'],
+  ['enver',        'nombre/apellido del ministro otomano Enver Pasha.'],
+  ['djemal',       'apellido del Gran Visir Djemal Pasha.'],
+  ['cemal',        'variante turca del apellido Djemal Pasha.'],
+  // ── Iron Guard rumano
+  ['codreanu',     'apellido del fundador fascista de la Guardia de Hierro Corneliu Codreanu.'],
+  // ── Albania / Bulgaria
+  ['hoxha',        'apellido del dictador albanés Enver Hoxha.'],
+  ['zhivkov',      'apellido del dictador búlgaro Todor Zhivkov.'],
+  // ── Religión / fatua
+  ['khomeini',     'apellido del Ayatolá Khomeini, fundador de la República Islámica de Irán.'],
   ['kaltenbrunner', 'apellido del jerarca nazi Ernst Kaltenbrunner.'],
   ['priebke',    'apellido del oficial nazi Erich Priebke.'],
   ['freisler',   'apellido del juez nazi Roland Freisler.'],

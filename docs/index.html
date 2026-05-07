@@ -156,8 +156,14 @@
           <p class="hint" id="proxy-status">Sin proxy configurado.</p>
 
           <h4>Clave de API directa <span class="tag warn">sólo demo</span></h4>
+          <p class="hint">
+            Soporta <strong>Anthropic Claude</strong> (<code>sk-ant-…</code>),
+            <strong>OpenAI GPT</strong> (<code>sk-…</code>) y
+            <strong>Google Gemini</strong> (cadena alfanumérica).
+            Auto-detectamos el proveedor por el prefijo.
+          </p>
           <div class="input-row">
-            <input id="api-key-input" type="password" placeholder="sk-ant-..." />
+            <input id="api-key-input" type="password" placeholder="sk-ant-... · sk-... · AIza..." />
             <button id="save-api-key" type="button">Guardar</button>
             <button id="clear-api-key" type="button" class="ghost">Borrar</button>
           </div>

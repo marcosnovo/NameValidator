@@ -87,6 +87,21 @@ export const scunthorpeWhitelist = [
 
   // ── Apellidos castellanos y portugueses comunes con substring potencial
   'lopez', 'lopezjr', 'lopes', 'lopezgarcia',
+  // ── Nombres griegos comunes que contienen "christ" como prefijo (no es
+  //    blasfemia: Χριστός es un nombre legítimo extendido en Grecia y la
+  //    diáspora ortodoxa). Sin esto el matcher de profanidad francesa
+  //    quebequesa los marca como soeces ("christ" / "christ de tabarnak").
+  'christos', 'christo', 'christodoulos', 'christodoulou',
+  'christou', 'christidis', 'christopoulos',
+  'christofidis', 'christoforidis', 'christoforou',
+  'christoulakis', 'christophoros',
+  // Nombres que contienen "christ" en general
+  'christian', 'christiana', 'christiano', 'christianos', 'christianna',
+  'christine', 'christina', 'christiane', 'christy', 'christie',
+  'christopher', 'cristopher', 'christophe', 'kristoffer',
+  'cristian', 'cristiano', 'cristiana', 'cristina', 'cristobal',
+  'kristina', 'kristian', 'kristina', 'krystian',
+  'christmas', 'christen', 'christened',
   'antilope', 'antilopes',
   'lopear',
   'culebro', 'culebrera',

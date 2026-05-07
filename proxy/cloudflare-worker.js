@@ -166,13 +166,20 @@ export default {
 
     // Health-check (útil para "Probar conexión" desde el frontend)
     if (request.method === 'GET' && url.pathname === '/api/health') {
+      const picked = pickProvider(env);
+      const providers_available = [];
+      if (env.ANTHROPIC_API_KEY) providers_available.push('anthropic');
+      if (env.OPENAI_API_KEY) providers_available.push('openai');
+      if (env.GOOGLE_API_KEY) providers_available.push('google');
       return jsonResponse(
         {
           ok: true,
-          ai_layer: !!env.ANTHROPIC_API_KEY,
-          kv_layer: !!env.KV,                // ← cache + aprobaciones + métricas
-          model: 'claude-opus-4-7',          // /api/ai-check (validación)
-          vision_model: 'claude-sonnet-4-6', // /api/scan-document (OCR)
+          ai_layer: !!picked,
+          kv_layer: !!env.KV,
+          providers_available,
+          provider: picked?.provider ?? null,
+          model: picked?.defaultModel ?? null,
+          vision_model: 'claude-sonnet-4-6',
           endpoints: [
             '/api/ai-check', '/api/scan-document', '/api/approve', '/api/metrics',
           ],
@@ -227,13 +234,16 @@ export default {
 async function aiCheck(request, env, cors, ctx) {
   const t0 = Date.now();
 
-  if (!env.ANTHROPIC_API_KEY) {
+  // Auto-detect provider — el primero que tenga key configurada.
+  // Override con env.AI_PROVIDER ('anthropic' | 'openai' | 'google').
+  const providerInfo = pickProvider(env);
+  if (!providerInfo) {
     return jsonResponse(
       {
         enabled: false,
         reason:
-          'ANTHROPIC_API_KEY no configurada en este Worker. Añádela en ' +
-          'Settings → Variables and Secrets como Secret.',
+          'No hay API key configurada. Añade en Settings → Variables and ' +
+          'Secrets una de: ANTHROPIC_API_KEY, OPENAI_API_KEY o GOOGLE_API_KEY.',
       },
       500,
       cors,
@@ -310,8 +320,10 @@ async function aiCheck(request, env, cors, ctx) {
     }
   }
 
-  // ── PASO C: Llamada real a Anthropic.
-  const result = await callAnthropic(input, env.ANTHROPIC_API_KEY);
+  // ── PASO C: Llamada real al provider seleccionado.
+  const result = await callProvider(input, providerInfo);
+  result.provider = providerInfo.provider;
+  result.model = result.model || providerInfo.defaultModel;
   const elapsed = Date.now() - t0;
 
   // Sólo cacheamos respuestas exitosas y que tengan veredicto. Errores de red
@@ -596,6 +608,203 @@ function jsonResponse(body, status, extraHeaders) {
     status,
     headers: { 'Content-Type': 'application/json', ...extraHeaders },
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Multi-provider AI: Anthropic Claude · OpenAI GPT · Google Gemini
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Selección:
+//   ▸ env.AI_PROVIDER ('anthropic' | 'openai' | 'google') fuerza uno
+//   ▸ Si no está, prueba en orden: Anthropic > OpenAI > Google
+//
+// Devuelve { provider, apiKey, defaultModel } o null si ninguno disponible.
+function pickProvider(env) {
+  const requested = env.AI_PROVIDER?.trim();
+  const candidates = {
+    anthropic: { key: env.ANTHROPIC_API_KEY, defaultModel: 'claude-opus-4-7' },
+    openai: { key: env.OPENAI_API_KEY, defaultModel: 'gpt-4o-2024-11-20' },
+    google: { key: env.GOOGLE_API_KEY, defaultModel: 'gemini-2.5-pro' },
+  };
+
+  if (requested && candidates[requested]?.key) {
+    return {
+      provider: requested,
+      apiKey: candidates[requested].key,
+      defaultModel: candidates[requested].defaultModel,
+    };
+  }
+  for (const provider of ['anthropic', 'openai', 'google']) {
+    if (candidates[provider].key) {
+      return {
+        provider,
+        apiKey: candidates[provider].key,
+        defaultModel: candidates[provider].defaultModel,
+      };
+    }
+  }
+  return null;
+}
+
+async function callProvider(input, info) {
+  switch (info.provider) {
+    case 'anthropic': return callAnthropic(input, info.apiKey);
+    case 'openai':    return callOpenAI(input, info.apiKey);
+    case 'google':    return callGoogle(input, info.apiKey);
+    default:
+      return { enabled: true, error: `Provider desconocido: ${info.provider}` };
+  }
+}
+
+// ─── OpenAI GPT ─────────────────────────────────────────────────────────
+async function callOpenAI(input, apiKey) {
+  const requestBody = {
+    model: 'gpt-4o-2024-11-20',
+    max_completion_tokens: 1024,
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'halo_verdict',
+        strict: true,
+        schema: RESPONSE_SCHEMA,
+      },
+    },
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `Evalúa este input para mostrar en el HALO:\n\n<input>${input}</input>`,
+      },
+    ],
+  };
+
+  let response;
+  try {
+    response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (err) {
+    return { enabled: true, error: `Network error reaching OpenAI: ${err?.message ?? err}` };
+  }
+
+  if (!response.ok) {
+    let detail;
+    try { detail = await response.json(); } catch { detail = await response.text().catch(() => null); }
+    return { enabled: true, error: `OpenAI HTTP ${response.status}`, detail };
+  }
+
+  let payload;
+  try { payload = await response.json(); }
+  catch { return { enabled: true, error: 'OpenAI devolvió respuesta no-JSON' }; }
+
+  const text = payload?.choices?.[0]?.message?.content;
+  if (!text) {
+    return { enabled: true, error: 'OpenAI sin contenido en la respuesta', raw: payload };
+  }
+
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch {
+    return {
+      enabled: true,
+      error: 'OpenAI devolvió JSON inválido',
+      raw: text,
+    };
+  }
+
+  return {
+    enabled: true,
+    ...parsed,
+    model: payload.model,
+    usage: {
+      input_tokens: payload.usage?.prompt_tokens ?? 0,
+      output_tokens: payload.usage?.completion_tokens ?? 0,
+    },
+  };
+}
+
+// ─── Google Gemini (AI Studio) ──────────────────────────────────────────
+async function callGoogle(input, apiKey) {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    `gemini-2.5-pro:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const requestBody = {
+    systemInstruction: {
+      role: 'system',
+      parts: [{ text: SYSTEM_PROMPT }],
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{
+          text: `Evalúa este input para mostrar en el HALO:\n\n<input>${input}</input>`,
+        }],
+      },
+    ],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: RESPONSE_SCHEMA,
+      temperature: 0.2,
+      maxOutputTokens: 1024,
+    },
+  };
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (err) {
+    return { enabled: true, error: `Network error reaching Google: ${err?.message ?? err}` };
+  }
+
+  if (!response.ok) {
+    let detail;
+    try { detail = await response.json(); } catch { detail = await response.text().catch(() => null); }
+    return { enabled: true, error: `Google HTTP ${response.status}`, detail };
+  }
+
+  let payload;
+  try { payload = await response.json(); }
+  catch { return { enabled: true, error: 'Google devolvió respuesta no-JSON' }; }
+
+  const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    return { enabled: true, error: 'Google sin texto en la respuesta', raw: payload };
+  }
+
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch {
+    // Algunos despliegues envuelven en ```json ... ```
+    const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '');
+    try { parsed = JSON.parse(cleaned); }
+    catch {
+      return {
+        enabled: true,
+        error: 'Google devolvió JSON inválido',
+        raw: text,
+      };
+    }
+  }
+
+  return {
+    enabled: true,
+    ...parsed,
+    model: 'gemini-2.5-pro',
+    usage: {
+      input_tokens: payload.usageMetadata?.promptTokenCount ?? 0,
+      output_tokens: payload.usageMetadata?.candidatesTokenCount ?? 0,
+    },
+  };
 }
 
 async function callAnthropic(input, apiKey) {
