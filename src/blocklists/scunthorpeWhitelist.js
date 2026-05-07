@@ -87,6 +87,16 @@ export const scunthorpeWhitelist = [
 
   // ── Apellidos castellanos y portugueses comunes con substring potencial
   'lopez', 'lopezjr', 'lopes', 'lopezgarcia',
+  // ── Nombres coreanos comunes con sílaba "jun" / "junho" / "minjun" que
+  //    matchean falsamente "injun" (slur en english_profanity). Coreano
+  //    Min-jun, Hye-jun, Jun-ho, Jun-seo son nombres extremadamente
+  //    extendidos en Corea (millones de personas).
+  'minjun', 'minjoon', 'minjune',
+  'hyejun', 'hyojun', 'sungjun',
+  'junho', 'junseo', 'junsu', 'junyoung', 'junki',
+  'jihun', 'jihoon', 'jiwon', 'jisoo',
+  'kimjun', 'parkminjun', 'leejun',
+
   // ── Nombres griegos comunes que contienen "christ" como prefijo (no es
   //    blasfemia: Χριστός es un nombre legítimo extendido en Grecia y la
   //    diáspora ortodoxa). Sin esto el matcher de profanidad francesa

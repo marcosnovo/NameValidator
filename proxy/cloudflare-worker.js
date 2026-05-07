@@ -181,7 +181,8 @@ export default {
           model: picked?.defaultModel ?? null,
           vision_model: 'claude-sonnet-4-6',
           endpoints: [
-            '/api/ai-check', '/api/scan-document', '/api/approve', '/api/metrics',
+            '/api/ai-check', '/api/scan-document', '/api/approve',
+            '/api/metrics', '/api/metrics/export.csv',
           ],
           mode: 'cloudflare-worker',
         },
@@ -193,6 +194,12 @@ export default {
     // Métricas agregadas — útil para el dashboard del operario.
     if (request.method === 'GET' && url.pathname === '/api/metrics') {
       return getMetrics(env, cors);
+    }
+
+    // Export del KV de aprobaciones a CSV — protegido por token simple
+    // para que sólo lo pueda llamar el operador con el secreto.
+    if (request.method === 'GET' && url.pathname === '/api/metrics/export.csv') {
+      return exportApprovalsCsv(request, env, cors);
     }
 
     if (request.method !== 'POST') {
@@ -601,6 +608,81 @@ function buildCorsHeaders(allowedRaw, requestOrigin) {
   }
   // Si no matchea, no incluimos el header → el browser bloqueará la respuesta.
   return headers;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  /api/metrics/export.csv — exporta KV de aprobaciones para entrenamiento
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Protegido por token: el caller debe pasar ?token=<env.EXPORT_TOKEN> que
+// coincida con el secret configurado en el Worker. Sin token → 403.
+//
+// Devuelve CSV con columnas:
+//   text,label,source,confidence,language_hint,context,timestamp,approver_id
+async function exportApprovalsCsv(request, env, cors) {
+  if (!env.KV) {
+    return jsonResponse({ ok: false, error: 'KV no bindeado' }, 503, cors);
+  }
+  if (!env.EXPORT_TOKEN) {
+    return jsonResponse(
+      { ok: false, error: 'EXPORT_TOKEN secret no configurado en el Worker.' },
+      503, cors,
+    );
+  }
+
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  if (token !== env.EXPORT_TOKEN) {
+    return jsonResponse({ ok: false, error: 'Token inválido' }, 403, cors);
+  }
+
+  // Listar todas las claves del prefix approvals
+  // Cloudflare KV.list devuelve hasta 1000 keys por request — paginamos.
+  const rows = [
+    ['text', 'label', 'source', 'confidence', 'language_hint', 'context', 'timestamp', 'approver_id'],
+  ];
+  let cursor;
+  let scanned = 0;
+  do {
+    const list = await env.KV.list({ prefix: 'approve:', cursor });
+    for (const k of list.keys) {
+      const entry = await env.KV.get(k.name, 'json');
+      if (!entry || !entry.approved) continue;
+      rows.push([
+        entry.input_preview || '',
+        'clean',  // operario aprobó → es CLEAN
+        'human-approval',
+        '1.00',
+        '',
+        entry.context || 'real-madrid',
+        entry.timestamp || '',
+        entry.approver_id || '',
+      ]);
+      scanned += 1;
+      if (scanned > 50000) break;  // safety cap
+    }
+    cursor = list.list_complete ? null : list.cursor;
+  } while (cursor && scanned < 50000);
+
+  // Construir CSV con escape proper (comillas)
+  const csv = rows.map((row) =>
+    row.map((cell) => {
+      const s = String(cell ?? '');
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(',')
+  ).join('\n');
+
+  return new Response(csv, {
+    status: 200,
+    headers: {
+      ...cors,
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="halo-approvals-${Date.now()}.csv"`,
+    },
+  });
 }
 
 function jsonResponse(body, status, extraHeaders) {

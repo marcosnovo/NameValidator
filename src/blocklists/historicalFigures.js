@@ -498,6 +498,35 @@ export const historicalFigures = [
     why: 'Emperador Hirohito — emperador de Japón durante la II Guerra Mundial; figura controvertida por las atrocidades del ejército imperial.',
   },
 
+  // ─── Asia adicional: dictadores y criminales de guerra ────────────────
+  {
+    names: ['Chiang Kai-shek', 'Chiang Kaishek'],
+    era: '1928-1975',
+    why: 'Chiang Kai-shek — líder del Kuomintang chino; "Terror Blanco" en Taiwán y violaciones masivas de DDHH.',
+  },
+
+  // ─── Centroeuropa: colaboracionistas y fascistas adicionales ──────────
+  {
+    names: ['Anton Mussert'],
+    era: '1931-1945',
+    why: 'Anton Mussert — líder del Partido Nacional Socialista holandés (NSB), colaboracionista nazi ejecutado en 1946.',
+  },
+  {
+    names: ['Miklós Horthy', 'Miklos Horthy'],
+    era: '1920-1944',
+    why: 'Miklós Horthy — Regente de Hungría aliado del Eje; deportación de 437.000 judíos al Holocausto en 1944.',
+  },
+  {
+    names: ['Ferenc Szálasi', 'Ferenc Szalasi'],
+    era: '1944-1945',
+    why: 'Ferenc Szálasi — líder de la Cruz Flechada (Nyilaskeresztes Párt) húngara, gobierno fascista colaboracionista en la Solución Final.',
+  },
+  {
+    names: ['Josip Broz Tito', 'Marshal Tito'],
+    era: '1945-1980',
+    why: 'Josip Broz Tito — líder yugoslavo. Figura polarizante: héroe antifascista para unos, responsable de purgas y campos de Goli Otok para otros.',
+  },
+
   // ─── Terrorismo y violencia política contemporánea ────────────────────
   {
     names: ['Osama bin Laden', 'Usama bin Laden'],
@@ -1462,6 +1491,15 @@ export const HISTORICAL_RARE_SURNAMES = new Map([
   ['zhivkov',      'apellido del dictador búlgaro Todor Zhivkov.'],
   // ── Religión / fatua
   ['khomeini',     'apellido del Ayatolá Khomeini, fundador de la República Islámica de Irán.'],
+  // ── Asia adicional
+  // (Tojo, Yamashita, Ishii ya en sección Imperialismo japonés WWII)
+  // (Chiang Kai-shek se flagea por nombre completo; Chiang/Kai-shek son
+  //  nombres comunes y no se incluyen sueltos)
+  // ── Centroeuropa
+  ['mussert',      'apellido del líder NSB nazi colaboracionista holandés Anton Mussert.'],
+  ['horthy',       'apellido del Regente fascista húngaro Miklós Horthy.'],
+  ['szalasi',      'apellido del líder Cruz Flechada Ferenc Szálasi.'],
+  ['szálasi',      'apellido del líder Cruz Flechada Ferenc Szálasi.'],
   ['kaltenbrunner', 'apellido del jerarca nazi Ernst Kaltenbrunner.'],
   ['priebke',    'apellido del oficial nazi Erich Priebke.'],
   ['freisler',   'apellido del juez nazi Roland Freisler.'],
