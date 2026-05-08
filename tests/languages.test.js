@@ -169,3 +169,181 @@ test('religiosos polémicos: Khomeini → REVIEW (Atatürk pasa)', async () => {
   r = await validateName('Mustafa Kemal Atatürk', OPTS);
   assert.equal(r.verdict, 'ALLOWED', 'Atatürk no es polémico');
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Cobertura ampliada — DE / IT / NL / HU / CS / ZH / JA / KO / HE
+//  ──────────────────────────────────────────────────────────────────────
+//  Para cada idioma: ≥4 nombres con vulgaridad (REJECTED), ≥3 nombres
+//  legítimos reales (ALLOWED), y cuando aplique ≥1 figura histórica
+//  problemática (REVIEW).
+// ──────────────────────────────────────────────────────────────────────────
+
+test('alemán — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['Klaus Scheisse',     'REJECTED'],
+    ['Hans Arschloch',     'REJECTED'],
+    ['Peter Hurensohn',    'REJECTED'],
+    ['Otto Wichser',       'REJECTED'],
+    ['Wolfgang Schwanz',   'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('alemán — nombres legítimos pasan', async () => {
+  for (const v of ['Hans Müller', 'Anna Schmidt', 'Klaus Weber', 'Thomas Becker']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('italiano — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['Giovanni Cazzo',     'REJECTED'],
+    ['Marco Minchia',      'REJECTED'],
+    ['Luca Stronzo',       'REJECTED'],
+    ['Antonio Bocchino',   'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('italiano — nombres legítimos pasan', async () => {
+  for (const v of ['Marco Rossi', 'Giulia Bianchi', 'Luca Ferrari', 'Sofia Romano']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('holandés — profanidad detectada (kanker, tyfus, hoer)', async () => {
+  for (const [input, expected] of [
+    ['Jan Kanker',         'REJECTED'],
+    ['Piet Tyfus',         'REJECTED'],
+    ['Hans Klootzak',      'REJECTED'],
+    ['Lisa Kankerhoer',    'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('holandés — nombres legítimos pasan', async () => {
+  for (const v of ['Jan de Vries', 'Sophie Bakker', 'Lars Visser']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('húngaro — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['István Kurva',       'REJECTED'],
+    ['Gábor Fasz',         'REJECTED'],
+    ['László Baszott',     'REJECTED'],
+    ['Tamás Faszfej',      'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('húngaro — nombres legítimos pasan', async () => {
+  for (const v of ['István Kovács', 'Mária Nagy', 'Péter Tóth']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('checo — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['Jan Pica',           'REJECTED'],
+    ['Pavel Kurva',        'REJECTED'],
+    ['Tomáš Hovno',        'REJECTED'],
+    ['Petr Curak',         'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('checo — nombres legítimos pasan', async () => {
+  for (const v of ['Jan Novák', 'Petr Svoboda', 'Pavel Černý']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('chino (pinyin) — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['Wang Caonima',       'REJECTED'],
+    ['Li Shabi',           'REJECTED'],
+    ['Chen Jiba',          'REJECTED'],   // 鸡巴 (pene vulgar)
+    ['Zhang Caoniba',      'REJECTED'],   // 操你逼 — vulgar
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('chino (pinyin) — nombres legítimos pasan', async () => {
+  for (const v of ['Wang Wei', 'Li Xiaoming', 'Chen Hua', 'Zhang Yong']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('japonés (rōmaji) — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['Tanaka Kuso',        'REJECTED'],
+    ['Sato Manko',         'REJECTED'],
+    ['Suzuki Chinpo',      'REJECTED'],
+    ['Watanabe Bakayarou', 'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('japonés — nombres legítimos pasan', async () => {
+  for (const v of ['Tanaka Hiroshi', 'Yamada Akiko', 'Suzuki Kenji', 'Sato Yuki']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('coreano (romanized) — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['Kim Shibal',         'REJECTED'],
+    ['Park Sibalnom',      'REJECTED'],
+    ['Lee Jiral',          'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('coreano — nombres legítimos pasan', async () => {
+  for (const v of ['Kim Minjun', 'Park Sooyoung', 'Lee Jiho']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
+
+test('hebreo (transliterado) — profanidad detectada', async () => {
+  for (const [input, expected] of [
+    ['David Zayin',        'REJECTED'],
+    ['Yossi Kus',          'REJECTED'],
+    ['Avi Kusemek',        'REJECTED'],
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('hebreo — nombres legítimos pasan', async () => {
+  for (const v of ['David Cohen', 'Sarah Levy', 'Daniel Friedman']) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
+  }
+});
