@@ -3,23 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HALO Name Validator · Santiago Bernabéu</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>HALO Name Validator · Bernabéu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <div class="badge" aria-hidden="true">⬭</div>
-      <h1>HALO Name Validator</h1>
-      <p class="tagline">
-        Test de nombres aptos para mostrarse en el HALO del Santiago Bernabéu.
-        Detecta lenguaje soez, slurs, nombres-broma y trampas fonéticas en
-        <strong>19 idiomas</strong> con normalización avanzada y fallback a IA.
-      </p>
-    </header>
+    <div class="bg-grain" aria-hidden="true"></div>
+    <div class="bg-glow" aria-hidden="true"></div>
 
     <main>
-      <section class="panel">
-        <label for="name-input" class="label">Nombre propuesto por el aficionado</label>
+      <header class="brand">
+        <span class="brand-mark" aria-hidden="true">⬭</span>
+        <span class="brand-text">
+          <span class="brand-name">HALO Validator</span>
+          <span class="brand-meta">Santiago Bernabéu · 19 idiomas · IA fallback</span>
+        </span>
+      </header>
+
+      <section class="card">
+        <div class="card-head">
+          <h1>¿Es apto este nombre para el HALO?</h1>
+          <p>Detecta lenguaje soez, slurs, nombres-broma fonéticos y trampas leet. Pulsa <kbd>Intro</kbd> para validar.</p>
+        </div>
+
         <div class="field">
           <input
             id="name-input"
@@ -27,208 +35,148 @@
             maxlength="60"
             autocomplete="off"
             spellcheck="false"
-            placeholder="Ej. Vinicius Jr., Juan García, Aitor Tilla…"
+            placeholder="Vinicius Jr., Aitor Tilla, Mike Hunt…"
           />
-          <button id="validate-btn" type="button">Validar</button>
+          <button
+            id="history-btn"
+            type="button"
+            class="icon-btn"
+            title="Historial (Cmd/Ctrl+K)"
+            aria-label="Historial"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">⌘</span>
+          </button>
+          <button
+            id="settings-btn"
+            type="button"
+            class="icon-btn"
+            title="Configurar IA"
+            aria-label="Configurar IA"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
+          <button id="validate-btn" type="button">
+            <span class="btn-label">Validar</span>
+            <span class="btn-arrow" aria-hidden="true">→</span>
+          </button>
         </div>
-        <div class="row">
+
+        <div class="history hidden" id="history-panel" role="listbox" aria-label="Validaciones recientes">
+          <div class="history-head">
+            <span>Recientes</span>
+            <button type="button" id="history-clear" class="link-btn">vaciar</button>
+          </div>
+          <ul id="history-list"></ul>
+        </div>
+
+        <div class="settings hidden" id="settings-panel" aria-label="Configuración de IA">
+          <div class="settings-head">
+            <span>Capa IA — trae tu propia API key</span>
+            <button type="button" id="settings-close" class="link-btn">cerrar</button>
+          </div>
+          <p class="settings-note">
+            La clave vive sólo en <code>sessionStorage</code> de esta pestaña — se borra
+            al cerrarla. Nunca sale de tu navegador, va directo a la API del proveedor.
+          </p>
+          <div class="settings-row">
+            <label class="settings-label" for="ai-provider">Proveedor</label>
+            <select id="ai-provider" class="settings-input">
+              <option value="auto">Auto-detectar por prefijo</option>
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI (GPT)</option>
+              <option value="google">Google (Gemini)</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label class="settings-label" for="ai-key">API key</label>
+            <div class="settings-key-wrap">
+              <input
+                id="ai-key"
+                class="settings-input"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="sk-ant-… / sk-… / AIza…"
+              />
+              <button type="button" id="ai-key-toggle" class="link-btn" title="Mostrar/ocultar">ver</button>
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button type="button" id="ai-save" class="btn-primary">Guardar (sólo esta pestaña)</button>
+            <button type="button" id="ai-clear" class="link-btn">olvidar clave</button>
+          </div>
+          <p class="settings-warn" id="settings-warn" hidden></p>
+        </div>
+
+        <div class="field-meta">
           <label class="check">
             <input type="checkbox" id="skip-ai" />
-            <span>Omitir capa AI (sólo listas)</span>
+            <span>Sólo capa estática (sin IA)</span>
           </label>
-          <span class="health" id="health-status">comprobando…</span>
+          <span class="shortcuts" aria-hidden="true">
+            <kbd>/</kbd> enfoca · <kbd>Esc</kbd> limpia · <kbd>⌘K</kbd> historial
+          </span>
+          <span class="health" id="health-status">…</span>
         </div>
-        <p class="hint">
-          Pulsa <kbd>Intro</kbd> para validar. Prueba variantes sutiles
-          (espacios extra, sustituciones <em>leet</em>, mayúsculas raras,
-          tildes): el sistema las normaliza antes de evaluar.
-        </p>
-      </section>
 
-      <section class="panel result hidden" id="result">
-        <header class="result-head">
-          <span class="verdict" id="verdict-pill">—</span>
-          <span class="doubt" id="doubt-pill">duda 0%</span>
-          <span class="elapsed" id="elapsed-pill">0 ms</span>
-        </header>
+        <div class="examples-row" role="group" aria-label="Casos de prueba">
+          <button class="ex" data-tone="ok">Vinicius Jr.</button>
+          <button class="ex" data-tone="ok">María Hernández</button>
+          <button class="ex" data-tone="bad">Aitor Tilla</button>
+          <button class="ex" data-tone="bad">Mike Hunt</button>
+          <button class="ex" data-tone="bad">pu7@</button>
+          <button class="ex" data-tone="sus">Helio Cóptero</button>
+        </div>
 
-        <div class="meter-wrap" aria-hidden="true">
-          <div class="meter">
+        <div class="result hidden" id="result">
+          <div class="result-line">
+            <span class="verdict" id="verdict-pill">—</span>
+            <span class="dot" aria-hidden="true">·</span>
+            <span class="doubt" id="doubt-pill">duda 0%</span>
+            <span class="dot" aria-hidden="true">·</span>
+            <span class="elapsed" id="elapsed-pill">0 ms</span>
+            <button id="share-btn" type="button" class="link-btn share-btn" title="Copiar enlace para compartir">
+              <span aria-hidden="true">↗</span> compartir
+            </button>
+          </div>
+
+          <div class="meter" aria-hidden="true">
             <div class="meter-fill" id="meter-fill"></div>
+            <div class="meter-tick" style="left:30%"></div>
+            <div class="meter-tick" style="left:70%"></div>
           </div>
-          <div class="meter-scale">
-            <span>0</span><span>30</span><span>70</span><span>100</span>
-          </div>
-        </div>
 
-        <div class="grid">
-          <div>
-            <h3>Razones</h3>
-            <ul id="reasons-list" class="reasons"></ul>
-          </div>
-          <div>
-            <h3>Detalle técnico</h3>
+          <ul id="reasons-list" class="reasons"></ul>
+
+          <details class="detail">
+            <summary>
+              <span>Detalle técnico</span>
+              <button id="copy-json-btn" type="button" class="link-btn copy-btn" title="Copiar JSON">copiar JSON</button>
+            </summary>
             <dl class="meta">
               <dt>Input</dt><dd id="meta-input">—</dd>
               <dt>Concatenado</dt><dd id="meta-concat" class="mono">—</dd>
               <dt>Sin leet</dt><dd id="meta-deleeted" class="mono">—</dd>
-              <dt>Capas ejecutadas</dt><dd id="meta-layers">—</dd>
+              <dt>Capas</dt><dd id="meta-layers">—</dd>
             </dl>
-          </div>
-        </div>
-
-        <details class="raw">
-          <summary>Respuesta JSON completa</summary>
-          <pre id="raw-json"></pre>
-        </details>
-      </section>
-
-      <section class="panel coverage">
-        <h3>Qué cubre el sistema</h3>
-        <p class="coverage-intro">
-          Validación multi-capa pensada para el HALO del Bernabéu: normaliza
-          la entrada, comprueba contra listas curadas en
-          <strong>19 idiomas</strong>, detecta nombres-broma fonéticos,
-          y sólo recurre a la IA cuando hay duda real.
-        </p>
-
-        <div class="coverage-grid">
-          <div class="cov-card cov-card-wide">
-            <div class="cov-head">
-              <span class="cov-num">19</span>
-              <span class="cov-title">Robustez por idioma — capa estática</span>
-            </div>
-            <p class="cov-sub">
-              % cobertura de la capa local (listas + fonético). El fallback
-              IA cubre el resto en cualquier idioma — incluso los no
-              listados aquí.
-            </p>
-            <ul class="lang-bars">
-              <li><span class="lang-flag">🇪🇸</span><span class="lang-name">Español</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
-              <li><span class="lang-flag">🇬🇧</span><span class="lang-name">Inglés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
-              <li><span class="lang-flag">🇫🇷</span><span class="lang-name">Francés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
-              <li><span class="lang-flag">🇵🇹</span><span class="lang-name">Portugués</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
-              <li><span class="lang-flag">🇩🇪</span><span class="lang-name">Alemán</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
-              <li><span class="lang-flag">🇮🇹</span><span class="lang-name">Italiano</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
-              <li><span class="lang-flag">🇨🇿</span><span class="lang-name">Checo</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="91"></span></span><span class="lang-pct">91%</span></li>
-              <li><span class="lang-flag">🇷🇺</span><span class="lang-name">Ruso</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇵🇱</span><span class="lang-name">Polaco</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇹🇷</span><span class="lang-name">Turco</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇸🇦</span><span class="lang-name">Árabe</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇷🇴</span><span class="lang-name">Rumano</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇬🇷</span><span class="lang-name">Griego</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇯🇵</span><span class="lang-name">Japonés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇨🇳</span><span class="lang-name">Chino</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇭🇺</span><span class="lang-name">Húngaro</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇳🇱</span><span class="lang-name">Holandés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇰🇷</span><span class="lang-name">Coreano</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-              <li><span class="lang-flag">🇮🇱</span><span class="lang-name">Hebreo</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="80"></span></span><span class="lang-pct">80%</span></li>
-            </ul>
-            <p class="cov-note">
-              Cómo se calcula: tamaño de la blocklist (60 pts, saturación a
-              80 entradas) + función fonética propia (20 pts) + matching
-              Aho-Corasick + joke names (20 pts). Todos los idiomas están
-              a ≥80% (capa estática producción-ready). Las atribuciones a
-              repos open-source consultados están en
-              <a href="https://github.com/marcosnovo/NameValidator/blob/main/CREDITS.md"
-                 style="color: var(--accent);">CREDITS.md</a>.
-            </p>
-          </div>
-
-          <div class="cov-card">
-            <div class="cov-head">
-              <span class="cov-num">5</span>
-              <span class="cov-title">Capas de validación</span>
-            </div>
-            <ul class="cov-list ordered">
-              <li><strong>Format check</strong> — longitud, caracteres permitidos, Unicode legítimo</li>
-              <li><strong>Normalización</strong> — NFD, leet (4→a, 0→o…), confusables cirílico/griego, fonético</li>
-              <li><strong>Listas estáticas</strong> — profanity, slurs, jokes, exact-only, scunthorpe whitelist</li>
-              <li><strong>Aho-Corasick</strong> — detección multi-patrón con tolerancia a separadores</li>
-              <li><strong>IA (Claude / GPT / Gemini)</strong> — fallback con voto de confianza para casos ambiguos</li>
-            </ul>
-          </div>
-
-          <div class="cov-card">
-            <div class="cov-head">
-              <span class="cov-num">∞</span>
-              <span class="cov-title">Trampas que detecta</span>
-            </div>
-            <ul class="cov-list">
-              <li>Profanity directa en cualquier idioma</li>
-              <li>Nombres-broma fonéticos (Aitor Tilla, Helio Cóptero, Mike Hunt…)</li>
-              <li>Slurs racistas, homófobos, religiosos</li>
-              <li>Apología nazi / fascista / terrorista</li>
-              <li>Figuras históricas controvertidas (dictadores, criminales)</li>
-              <li>Substituciones leet (pu7@, F.U.C.K, p_u_t_a)</li>
-              <li>Reverso (atup → puta)</li>
-              <li>Caracteres confusables (а cirílico vs a latino)</li>
-              <li>Espacios y separadores artificiales</li>
-              <li>Nombres del Real Madrid usados de forma ofensiva</li>
-            </ul>
-          </div>
-
-          <div class="cov-card">
-            <div class="cov-head">
-              <span class="cov-num">3</span>
-              <span class="cov-title">Plataformas</span>
-            </div>
-            <ul class="cov-list">
-              <li><strong>Web</strong> (este sitio) — para test y operación de oficina</li>
-              <li><strong>Móvil iOS / Android</strong> — Flutter, con cámara+OCR del DNI/pasaporte y NFC del DNI 3.0 (en desarrollo)</li>
-              <li><strong>API directa</strong> — Cloudflare Worker, integrable en cualquier sistema</li>
-            </ul>
-            <p class="cov-note">
-              Toda la lógica vive en el Worker. Web y móvil son clientes
-              finos del mismo backend → cualquier mejora se propaga
-              automáticamente a las dos plataformas.
-            </p>
-          </div>
-        </div>
-
-        <div class="coverage-meta">
-          <div class="meta-pill"><span>⚡</span> &lt;5 ms con cache (KV)</div>
-          <div class="meta-pill"><span>🔒</span> GDPR · sin datos personales en logs</div>
-          <div class="meta-pill"><span>🌍</span> Edge global (Cloudflare)</div>
-          <div class="meta-pill"><span>🧠</span> Multi-provider AI (Claude / GPT / Gemini)</div>
+            <pre id="raw-json" class="raw"></pre>
+          </details>
         </div>
       </section>
 
-      <section class="panel examples">
-        <h3>Casos de prueba sugeridos</h3>
-        <p>Haz clic en cualquiera para validarlo automáticamente.</p>
-        <div class="example-grid">
-          <button class="ex ok">Vinicius Jr.</button>
-          <button class="ex ok">María Hernández</button>
-          <button class="ex ok">Jude Bellingham</button>
-          <button class="ex bad">Aitor Tilla</button>
-          <button class="ex bad">Susana Oria</button>
-          <button class="ex bad">Elena Nito</button>
-          <button class="ex bad">Mario Neta</button>
-          <button class="ex bad">Mike Hunt</button>
-          <button class="ex bad">Hugh Jass</button>
-          <button class="ex bad">Ben Dover</button>
-          <button class="ex bad">Jean Bon</button>
-          <button class="ex bad">Paul Ochon</button>
-          <button class="ex bad">P u t a</button>
-          <button class="ex bad">F.U.C.K</button>
-          <button class="ex bad">pu7@</button>
-          <button class="ex bad">atup</button>
-          <button class="ex sus">Helio Cóptero</button>
-          <button class="ex sus">Lola Mento</button>
-          <button class="ex sus">Pepe Cojonez</button>
-        </div>
-      </section>
+      <footer class="foot">
+        <a href="https://github.com/marcosnovo/NameValidator" target="_blank" rel="noopener">github</a>
+        <span class="foot-sep">·</span>
+        <a href="https://github.com/marcosnovo/NameValidator/blob/main/CREDITS.md" target="_blank" rel="noopener">credits</a>
+        <span class="foot-sep">·</span>
+        <span>multi-capa: format → leet → listas → fonética → IA</span>
+      </footer>
     </main>
 
-    <footer>
-      <small>
-        Sistema multi-capa · normalización + listas en 19 idiomas + IA
-        (Claude / GPT / Gemini). Si dudas, marca <strong>REVIEW</strong>
-        con la duda en porcentaje.
-      </small>
-    </footer>
-
-    <script src="/app.js"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>

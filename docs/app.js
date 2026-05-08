@@ -6,6 +6,8 @@
 //   ▸ Historial localStorage: últimas 10 validaciones
 //   ▸ Copiar JSON al portapapeles
 //   ▸ Atajos: / enfoca · Esc limpia · Cmd/Ctrl+K abre historial
+//   ▸ BYO API key: Anthropic / OpenAI / Gemini en sessionStorage
+//     (se borra al cerrar la pestaña; nunca sale del navegador)
 
 import { validateName } from './lib/validator.js';
 
@@ -32,14 +34,23 @@ const historyList = $('#history-list');
 const historyClear = $('#history-clear');
 const shareBtn = $('#share-btn');
 const copyJsonBtn = $('#copy-json-btn');
+const settingsBtn = $('#settings-btn');
+const settingsPanel = $('#settings-panel');
+const settingsClose = $('#settings-close');
+const settingsWarn = $('#settings-warn');
+const aiProvider = $('#ai-provider');
+const aiKey = $('#ai-key');
+const aiKeyToggle = $('#ai-key-toggle');
+const aiSave = $('#ai-save');
+const aiClear = $('#ai-clear');
 
 const HISTORY_KEY = 'halo.history.v1';
 const HISTORY_MAX = 10;
-
-healthStatus.className = 'health ok';
-healthStatus.textContent = 'modo estático · 19 idiomas';
+const AI_KEY = 'halo.aikey.v1';
 
 let lastResult = null;
+let aiCfg = loadAiCfg();
+updateHealthBadge();
 
 // ── Validation flow ─────────────────────────────────────
 async function validate() {
@@ -56,7 +67,10 @@ async function validate() {
 
   const t0 = performance.now();
   try {
-    const verdict = await validateName(name, { skipAI: true });
+    const opts = aiCfg?.apiKey
+      ? { skipAI: skipAI.checked, apiKey: aiCfg.apiKey, provider: aiCfg.provider === 'auto' ? undefined : aiCfg.provider }
+      : { skipAI: true };
+    const verdict = await validateName(name, opts);
     const elapsed_ms = Math.round(performance.now() - t0);
     const data = { ...verdict, elapsed_ms, input: name };
     lastResult = data;
@@ -109,8 +123,10 @@ function render(data) {
     metaDeleeted.textContent = data.normalized?.deLeeted ?? '—';
   }
   const ls = data.layer_summary ?? {};
+  const aiErrored = (data.reasons ?? []).some((r) => r.source === 'ai.error');
+  const aiSym = ls.ai_run ? '✓' : aiErrored ? '✗' : '—';
   metaLayers.textContent =
-    `format=${ls.format_issues ?? 0} · static=${ls.static_issues ?? 0} · ai=${ls.ai_run ? '✓' : '—'}`;
+    `format=${ls.format_issues ?? 0} · static=${ls.static_issues ?? 0} · ai=${aiSym}`;
 
   rawJson.textContent = JSON.stringify(data, null, 2);
 }
@@ -281,6 +297,125 @@ function toggleHistory(force) {
   }
 }
 
+// ── Settings (BYO API key) ──────────────────────────────
+function loadAiCfg() {
+  try {
+    const raw = sessionStorage.getItem(AI_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.apiKey) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveAiCfg(cfg) {
+  try { sessionStorage.setItem(AI_KEY, JSON.stringify(cfg)); } catch {}
+}
+
+function clearAiCfg() {
+  try { sessionStorage.removeItem(AI_KEY); } catch {}
+}
+
+function detectProviderForUi(key) {
+  if (!key) return 'auto';
+  if (key.startsWith('sk-ant-')) return 'anthropic';
+  if (key.startsWith('sk-')) return 'openai';
+  return 'google';
+}
+
+function providerLabel(p) {
+  return p === 'anthropic' ? 'Claude'
+    : p === 'openai' ? 'GPT'
+    : p === 'google' ? 'Gemini'
+    : 'IA';
+}
+
+function updateHealthBadge() {
+  if (aiCfg?.apiKey) {
+    const p = aiCfg.provider && aiCfg.provider !== 'auto'
+      ? aiCfg.provider
+      : detectProviderForUi(aiCfg.apiKey);
+    healthStatus.className = 'health ok';
+    healthStatus.textContent = `IA · ${providerLabel(p)} activa`;
+    skipAI.parentElement.classList.remove('disabled');
+    skipAI.disabled = false;
+  } else {
+    healthStatus.className = 'health ok';
+    healthStatus.textContent = 'modo estático · 19 idiomas';
+    skipAI.checked = true;
+    skipAI.disabled = true;
+    skipAI.parentElement.classList.add('disabled');
+  }
+}
+
+function showSettingsWarn(text, kind) {
+  if (!text) {
+    settingsWarn.hidden = true;
+    settingsWarn.textContent = '';
+    return;
+  }
+  settingsWarn.hidden = false;
+  settingsWarn.textContent = text;
+  settingsWarn.classList.toggle('ok', kind === 'ok');
+}
+
+function toggleSettings(force) {
+  const willOpen = typeof force === 'boolean' ? force : settingsPanel.classList.contains('hidden');
+  if (willOpen) {
+    if (aiCfg) {
+      aiKey.value = aiCfg.apiKey;
+      aiProvider.value = aiCfg.provider ?? 'auto';
+    } else {
+      aiKey.value = '';
+      aiProvider.value = 'auto';
+    }
+    showSettingsWarn(null);
+    settingsPanel.classList.remove('hidden');
+    settingsBtn.setAttribute('aria-expanded', 'true');
+    setTimeout(() => aiKey.focus(), 50);
+  } else {
+    settingsPanel.classList.add('hidden');
+    settingsBtn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function handleAiSave() {
+  const key = aiKey.value.trim();
+  if (!key) {
+    showSettingsWarn('Introduce una API key.');
+    return;
+  }
+  if (key.length < 16) {
+    showSettingsWarn('La clave parece demasiado corta.');
+    return;
+  }
+  aiCfg = { apiKey: key, provider: aiProvider.value };
+  saveAiCfg(aiCfg);
+  updateHealthBadge();
+  skipAI.checked = false;
+  showSettingsWarn(`Clave guardada en sessionStorage. Proveedor: ${providerLabel(
+    aiCfg.provider === 'auto' ? detectProviderForUi(key) : aiCfg.provider,
+  )}.`, 'ok');
+  setTimeout(() => toggleSettings(false), 1200);
+}
+
+function handleAiClearCfg() {
+  aiCfg = null;
+  clearAiCfg();
+  aiKey.value = '';
+  aiProvider.value = 'auto';
+  updateHealthBadge();
+  showSettingsWarn('Clave olvidada.', 'ok');
+}
+
+function toggleAiKeyVisibility() {
+  const show = aiKey.type === 'password';
+  aiKey.type = show ? 'text' : 'password';
+  aiKeyToggle.textContent = show ? 'ocultar' : 'ver';
+}
+
 // ── Atajos de teclado ───────────────────────────────────
 function handleShortcut(e) {
   // Cmd/Ctrl + K → toggle historial
@@ -289,9 +424,11 @@ function handleShortcut(e) {
     toggleHistory();
     return;
   }
-  // Esc → limpia input o cierra historial
+  // Esc → limpia input o cierra paneles
   if (e.key === 'Escape') {
-    if (!historyPanel.classList.contains('hidden')) {
+    if (!settingsPanel.classList.contains('hidden')) {
+      toggleSettings(false);
+    } else if (!historyPanel.classList.contains('hidden')) {
       toggleHistory(false);
     } else if (document.activeElement === input) {
       input.value = '';
@@ -324,10 +461,28 @@ document.querySelectorAll('.ex').forEach((btn) => {
     validate();
   });
 });
-historyBtn.addEventListener('click', () => toggleHistory());
+historyBtn.addEventListener('click', () => {
+  toggleSettings(false);
+  toggleHistory();
+});
 historyClear.addEventListener('click', (e) => {
   e.stopPropagation();
   clearHistory();
+});
+
+settingsBtn.addEventListener('click', () => {
+  toggleHistory(false);
+  toggleSettings();
+});
+settingsClose.addEventListener('click', () => toggleSettings(false));
+aiSave.addEventListener('click', handleAiSave);
+aiClear.addEventListener('click', handleAiClearCfg);
+aiKeyToggle.addEventListener('click', toggleAiKeyVisibility);
+aiKey.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleAiSave();
+  }
 });
 shareBtn?.addEventListener('click', shareUrl);
 copyJsonBtn?.addEventListener('click', (e) => {
@@ -338,10 +493,16 @@ copyJsonBtn?.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', handleShortcut);
 document.addEventListener('click', (e) => {
-  if (historyPanel.classList.contains('hidden')) return;
-  if (historyPanel.contains(e.target)) return;
-  if (historyBtn.contains(e.target)) return;
-  toggleHistory(false);
+  if (!historyPanel.classList.contains('hidden')) {
+    if (!historyPanel.contains(e.target) && !historyBtn.contains(e.target)) {
+      toggleHistory(false);
+    }
+  }
+  if (!settingsPanel.classList.contains('hidden')) {
+    if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
+      toggleSettings(false);
+    }
+  }
 });
 
 input.focus();
