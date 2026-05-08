@@ -10,6 +10,7 @@
 //     (se borra al cerrar la pestaña; nunca sale del navegador)
 
 import { validateName } from './lib/validator.js';
+import { getCoverage } from './lib/coverage.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -43,6 +44,12 @@ const aiKey = $('#ai-key');
 const aiKeyToggle = $('#ai-key-toggle');
 const aiSave = $('#ai-save');
 const aiClear = $('#ai-clear');
+const coverageBtn = $('#coverage-btn');
+const coveragePanel = $('#coverage-panel');
+const coverageClose = $('#coverage-close');
+const coverageSummary = $('#coverage-summary');
+const coverageLangs = $('#coverage-langs');
+const coverageExtra = $('#coverage-extra');
 
 const HISTORY_KEY = 'halo.history.v1';
 const HISTORY_MAX = 10;
@@ -416,6 +423,67 @@ function toggleAiKeyVisibility() {
   aiKeyToggle.textContent = show ? 'ocultar' : 'ver';
 }
 
+// ── Cobertura ───────────────────────────────────────────
+let coverageRendered = false;
+const fmt = (n) => n.toLocaleString('es-ES');
+
+function renderCoverage() {
+  const c = getCoverage();
+  coverageSummary.innerHTML = `
+    <div class="coverage-stat">
+      <div class="coverage-stat-num">${c.languages.length}</div>
+      <div class="coverage-stat-label">Idiomas activos</div>
+    </div>
+    <div class="coverage-stat">
+      <div class="coverage-stat-num">${fmt(c.totals.profanity)}</div>
+      <div class="coverage-stat-label">Vulgaridades</div>
+    </div>
+    <div class="coverage-stat">
+      <div class="coverage-stat-num">${fmt(c.totals.jokeNames)}</div>
+      <div class="coverage-stat-label">Nombres-broma</div>
+    </div>
+    <div class="coverage-stat">
+      <div class="coverage-stat-num">${fmt(c.totals.total)}</div>
+      <div class="coverage-stat-label">Entradas totales</div>
+    </div>
+  `;
+
+  coverageLangs.innerHTML = c.languages
+    .map(
+      (l) => `
+        <li title="${l.name}: ${fmt(l.profanity)} prof · ${fmt(l.jokeNames)} joke · ${fmt(l.exactOnly)} exact">
+          <span class="lang-code">${l.code}</span>
+          <span class="lang-name">${l.name}</span>
+          <span class="lang-counts">${fmt(l.profanity)}·${fmt(l.jokeNames)}·${fmt(l.exactOnly)}</span>
+        </li>`,
+    )
+    .join('');
+
+  const ctxList = c.contexts.map((x) => x.label).join(' · ');
+  coverageExtra.innerHTML = `
+    <div class="row"><strong>Figuras históricas (slurs / dictadores / criminales)</strong><span class="num">${fmt(c.historicalFigures)}</span></div>
+    <div class="row"><strong>Whitelist Scunthorpe (anti-falsos-positivos)</strong><span class="num">${fmt(c.scunthorpeWhitelist)}</span></div>
+    <div class="row"><strong>Jugadores rivales (full-name)</strong><span class="num">${fmt(c.realMadrid.rivalPlayers)}</span></div>
+    <div class="row"><strong>Apellidos rivales standalone (únicos · comunes)</strong><span class="num">${c.realMadrid.rivalSurnamesUnique} · ${c.realMadrid.rivalSurnamesCommon}</span></div>
+    <div class="row"><strong>Cánticos anti-Madrid</strong><span class="num">${fmt(c.realMadrid.antiMadridChants)}</span></div>
+    <div class="row"><strong>Contextos de cliente</strong><span class="num">${ctxList}</span></div>
+    <div class="row"><strong>Capas del pipeline</strong><span class="num">${c.layers.join(' → ')}</span></div>
+  `;
+  coverageRendered = true;
+}
+
+function toggleCoverage(force) {
+  const willOpen = typeof force === 'boolean' ? force : coveragePanel.classList.contains('hidden');
+  if (willOpen) {
+    if (!coverageRendered) renderCoverage();
+    coveragePanel.classList.remove('hidden');
+    coverageBtn.setAttribute('aria-expanded', 'true');
+  } else {
+    coveragePanel.classList.add('hidden');
+    coverageBtn.setAttribute('aria-expanded', 'false');
+  }
+}
+
 // ── Atajos de teclado ───────────────────────────────────
 function handleShortcut(e) {
   // Cmd/Ctrl + K → toggle historial
@@ -426,7 +494,9 @@ function handleShortcut(e) {
   }
   // Esc → limpia input o cierra paneles
   if (e.key === 'Escape') {
-    if (!settingsPanel.classList.contains('hidden')) {
+    if (!coveragePanel.classList.contains('hidden')) {
+      toggleCoverage(false);
+    } else if (!settingsPanel.classList.contains('hidden')) {
       toggleSettings(false);
     } else if (!historyPanel.classList.contains('hidden')) {
       toggleHistory(false);
@@ -463,6 +533,7 @@ document.querySelectorAll('.ex').forEach((btn) => {
 });
 historyBtn.addEventListener('click', () => {
   toggleSettings(false);
+  toggleCoverage(false);
   toggleHistory();
 });
 historyClear.addEventListener('click', (e) => {
@@ -472,9 +543,17 @@ historyClear.addEventListener('click', (e) => {
 
 settingsBtn.addEventListener('click', () => {
   toggleHistory(false);
+  toggleCoverage(false);
   toggleSettings();
 });
 settingsClose.addEventListener('click', () => toggleSettings(false));
+
+coverageBtn.addEventListener('click', () => {
+  toggleHistory(false);
+  toggleSettings(false);
+  toggleCoverage();
+});
+coverageClose.addEventListener('click', () => toggleCoverage(false));
 aiSave.addEventListener('click', handleAiSave);
 aiClear.addEventListener('click', handleAiClearCfg);
 aiKeyToggle.addEventListener('click', toggleAiKeyVisibility);
@@ -501,6 +580,11 @@ document.addEventListener('click', (e) => {
   if (!settingsPanel.classList.contains('hidden')) {
     if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
       toggleSettings(false);
+    }
+  }
+  if (!coveragePanel.classList.contains('hidden')) {
+    if (!coveragePanel.contains(e.target) && !coverageBtn.contains(e.target)) {
+      toggleCoverage(false);
     }
   }
 });
