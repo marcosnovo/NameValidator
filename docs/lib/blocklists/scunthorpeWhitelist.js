@@ -359,6 +359,15 @@ export const scunthorpeWhitelist = [
   'florea',
   'serban',                           // FP "serb"
   'oprea',
+
+  // ── Nombres de pila comunes que coinciden con slang ofensivo en otros
+  //    idiomas. Sin esta whitelist, los hablantes de cada idioma crean
+  //    falsos positivos en cuanto teclean su propio nombre.
+  'peter', 'péter',                   // FR "peter" (tirarse un pedo) — pero
+                                       //   nombre de pila estándar en EN/DE/HU/NL
+  'piotr',                             // PL ↔ peter
+  'pieter', 'pieter-',                 // NL Pieter
+  'pjotr',                             // RU Пётр transliterado
 ];
 
 // Pre-normalizamos la whitelist al cargar el módulo (más rápido).
