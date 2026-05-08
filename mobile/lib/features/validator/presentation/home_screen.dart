@@ -17,6 +17,7 @@ import '../../../app/router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/validator/format_check.dart';
+import '../../../core/validator/static_check.dart';
 import 'settings_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -43,6 +44,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final issue = fmt.issues.first;
       setState(() => _localError = _localizeFormatIssue(issue));
       HapticFeedback.heavyImpact();
+      return;
+    }
+
+    // ── FAST-PATH LOCAL ─────────────────────────────────────────────
+    // Profanity check Dart-local (ES/EN/FR + jokes). Si pilla algo HIGH
+    // ya rechazamos sin gastar llamada al Worker. Cubre ~70% del tráfico
+    // ofensivo "obvio" en <1ms.
+    final local = localStaticCheck(input);
+    if (local.verdict == 'REJECTED' && !local.needsAi) {
+      ref.read(recentValidationsProvider.notifier).add(input, 'REJECTED');
+      HapticFeedback.heavyImpact();
+      if (!mounted) return;
+      context.push(AppRoutes.result, extra: {
+        'input': input,
+        'verdict': {
+          'verdict': 'REJECTED',
+          'confidence_offensive': local.doubt,
+          'languages_with_issue': [for (final i in local.issues) i.lang ?? 'other'],
+          'categories': [for (final i in local.issues) i.category],
+          'rationale': 'Detectado localmente en <1ms — sin gastar AI.',
+          'reasons': [
+            for (final i in local.issues)
+              {
+                'severity': i.severity,
+                'source': 'static.${i.lang ?? "?"}.${i.category}',
+                'message': i.message ?? '',
+              },
+          ],
+          'source': 'local-fast-path',
+        },
+      });
+      _controller.clear();
       return;
     }
 
@@ -185,7 +218,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
-                      onPressed: () => context.push(AppRoutes.scanner),
+                      onPressed: _busy ? null : () async {
+                        final picked = await context.push<String>(AppRoutes.scanner);
+                        if (picked != null && picked.isNotEmpty && mounted) {
+                          _controller.text = picked;
+                          _focusNode.requestFocus();
+                        }
+                      },
                       icon: const Icon(Icons.document_scanner_rounded, size: 18),
                       label: const Text('Escanear DNI / pasaporte'),
                     ),

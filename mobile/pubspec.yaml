@@ -29,24 +29,24 @@ dependencies:
   intl: ^0.19.0               # formateo de fechas en el dashboard de métricas
   collection: ^1.18.0         # GroupBy, equality helpers
 
-  # ── DEPENDENCIAS NATIVAS PESADAS — diferidas a PR de implementación
+  # ── Cámara + OCR on-device (Apple VisionKit / Android MLKit)
   #
-  # Las descomentamos cuando vayamos a implementar las features que las usan.
-  # Mantenerlas aquí desde el primer scaffold ralentiza la build inicial:
-  #   - google_mlkit_text_recognition arrastra el Android NDK (~1.5 GB) y
-  #     varios pods iOS pesados con minSdk/iOS deployment estricto.
-  #   - camera + nfc_manager también compilan código nativo en cada build.
-  # Hasta que llegue su PR (cámara + OCR / NFC / biometric login), las
-  # pantallas correspondientes son placeholders sin imports a estos plugins.
+  # ⚠ Estas deps arrastran el Android NDK (~1.5 GB primera build) y pods
+  # iOS pesados. La primera build tras descomentar tarda 30+ min mientras
+  # gradle baja el NDK; las siguientes builds son rápidas (cacheado).
   #
-  # Cámara + OCR on-device (Apple VisionKit / Android MLKit):
-  # camera: ^0.11.0+2
-  # google_mlkit_text_recognition: ^0.14.0
-  #
-  # NFC para DNI 3.0 (Android IsoDep / iOS CoreNFC, protocolo ICAO 9303):
-  # nfc_manager: ^3.5.0+1
-  #
-  # Biometric login del operario (Face ID / fingerprint):
+  # iOS: requiere iOS 15.5+ y NSCameraUsageDescription en Info.plist
+  # Android: minSdk 23 y permisos CAMERA en AndroidManifest
+  # (los scripts mobile/scripts/setup-ios.sh y setup-android.sh los configuran)
+  camera: ^0.11.0+2
+  google_mlkit_text_recognition: ^0.14.0
+  image_picker: ^1.1.2
+
+  # ── NFC para DNI 3.0 (Android IsoDep / iOS CoreNFC, protocolo ICAO 9303):
+  nfc_manager: ^3.5.0+1
+
+  # ── Biometric login del operario (Face ID / fingerprint):
+  # Aún no usado, descomentar cuando se implemente la pantalla de login.
   # local_auth: ^2.3.0
 
 dev_dependencies:

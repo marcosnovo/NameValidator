@@ -300,6 +300,129 @@ kbd {
   font-family: ui-monospace, monospace;
 }
 
+/* ── Coverage ────────────────────────────────────────── */
+.coverage h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+.coverage-intro {
+  margin: 0 0 22px;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  max-width: 760px;
+}
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 720px) {
+  .coverage-grid { grid-template-columns: 1fr; }
+}
+.cov-card {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.cov-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+}
+.cov-num {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.cov-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+.cov-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.cov-list.ordered {
+  counter-reset: cov;
+}
+.cov-list.ordered li {
+  counter-increment: cov;
+  padding-left: 26px;
+  position: relative;
+}
+.cov-list.ordered li::before {
+  content: counter(cov);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cov-list .flag {
+  display: inline-block;
+  width: 22px;
+  margin-right: 6px;
+  text-align: center;
+}
+.cov-list strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+.cov-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+  line-height: 1.5;
+}
+.coverage-meta {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+}
+.meta-pill span {
+  font-size: 0.95rem;
+}
+
 /* ── Examples ────────────────────────────────────────── */
 .examples h3 {
   margin: 0 0 4px;

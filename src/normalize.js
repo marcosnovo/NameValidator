@@ -400,6 +400,18 @@ function phoneticNl(s) {
     .replace(/([bcdfgklmnprstvz])\1/g, '$1');
 }
 
+// Checo. Equivalencias clave:
+//   - č → c, š → s, ž → z, ř → r (ya stripDiacritics)
+//   - ch → h (en checo "ch" es un sonido /x/, similar a la jota)
+//   - ý → y, ů → u (stripDiacritics)
+//   - dobles colapsadas
+function phoneticCs(s) {
+  if (!s) return '';
+  return s
+    .replace(/ch/g, 'h')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
 // Árabe transliterado. Pillamos variantes muy comunes en "Arabizi":
 //   - 3 → a (sustitución típica de la letra ع ain)
 //   - 7 → h (sustitución típica de la letra ح)
@@ -484,6 +496,7 @@ function buildVariants(raw) {
   const phoneticHeView = phoneticHe(concatNoSpaces);
   const phoneticHuView = phoneticHu(concatNoSpaces);
   const phoneticNlView = phoneticNl(concatNoSpaces);
+  const phoneticCsView = phoneticCs(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -515,6 +528,7 @@ function buildVariants(raw) {
     phoneticHe: phoneticHeView, //   kh/ch→h
     phoneticHu: phoneticHuView, //   cs→ch, sz→s, zs→zh, gy→dy, ny→n, ly→y
     phoneticNl: phoneticNlView, //   sch→s, ij→i, oe→u, eu→o
+    phoneticCs: phoneticCsView, //   ch→h, dobles colapsadas
     tokens,               // ['aitor', 'tilla']
   };
 }
@@ -543,4 +557,5 @@ export {
   phoneticHe,
   phoneticHu,
   phoneticNl,
+  phoneticCs,
 };

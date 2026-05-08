@@ -87,6 +87,15 @@ export const scunthorpeWhitelist = [
 
   // ── Apellidos castellanos y portugueses comunes con substring potencial
   'lopez', 'lopezjr', 'lopes', 'lopezgarcia',
+  // ── Apellidos checos/eslovacos comunes que colisionan con profanidad
+  //    fonética. "Svoboda" (libertad) es el apellido más común de Chequia;
+  //    tras phoneticEs (v→b) "sboboda" contiene "bobo" (idiota español).
+  'svoboda', 'svobodova', 'svobodník',
+  'novak', 'novák', 'nováková', 'novakova',  // Novák — top apellido CZ/SK
+  'dvořák', 'dvorak', 'dvořáková', 'dvorakova',  // Dvořák
+  'němec', 'nemec',                              // Němec
+  'pekka', 'pekarova',                           // Pekka, Pekařová
+
   // ── Nombres coreanos comunes con sílaba "jun" / "junho" / "minjun" que
   //    matchean falsamente "injun" (slur en english_profanity). Coreano
   //    Min-jun, Hye-jun, Jun-ho, Jun-seo son nombres extremadamente
