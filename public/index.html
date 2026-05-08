@@ -93,32 +93,44 @@
         </p>
 
         <div class="coverage-grid">
-          <div class="cov-card">
+          <div class="cov-card cov-card-wide">
             <div class="cov-head">
               <span class="cov-num">19</span>
-              <span class="cov-title">Idiomas con listas propias</span>
+              <span class="cov-title">Robustez por idioma — capa estática</span>
             </div>
-            <ul class="cov-list">
-              <li><span class="flag">🇪🇸</span> Español</li>
-              <li><span class="flag">🇬🇧</span> Inglés</li>
-              <li><span class="flag">🇫🇷</span> Francés</li>
-              <li><span class="flag">🇵🇹</span> Portugués</li>
-              <li><span class="flag">🇩🇪</span> Alemán</li>
-              <li><span class="flag">🇮🇹</span> Italiano</li>
-              <li><span class="flag">🇳🇱</span> Holandés</li>
-              <li><span class="flag">🇵🇱</span> Polaco</li>
-              <li><span class="flag">🇷🇺</span> Ruso</li>
-              <li><span class="flag">🇨🇿</span> Checo</li>
-              <li><span class="flag">🇭🇺</span> Húngaro</li>
-              <li><span class="flag">🇬🇷</span> Griego</li>
-              <li><span class="flag">🇹🇷</span> Turco</li>
-              <li><span class="flag">🇷🇴</span> Rumano</li>
-              <li><span class="flag">🇸🇦</span> Árabe</li>
-              <li><span class="flag">🇮🇱</span> Hebreo</li>
-              <li><span class="flag">🇨🇳</span> Chino</li>
-              <li><span class="flag">🇯🇵</span> Japonés</li>
-              <li><span class="flag">🇰🇷</span> Coreano</li>
+            <p class="cov-sub">
+              % cobertura de la capa local (listas + fonético). El fallback
+              IA cubre el resto en cualquier idioma — incluso los no
+              listados aquí.
+            </p>
+            <ul class="lang-bars">
+              <li><span class="lang-flag">🇪🇸</span><span class="lang-name">Español</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
+              <li><span class="lang-flag">🇬🇧</span><span class="lang-name">Inglés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
+              <li><span class="lang-flag">🇫🇷</span><span class="lang-name">Francés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
+              <li><span class="lang-flag">🇵🇹</span><span class="lang-name">Portugués</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
+              <li><span class="lang-flag">🇩🇪</span><span class="lang-name">Alemán</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="100"></span></span><span class="lang-pct">100%</span></li>
+              <li><span class="lang-flag">🇮🇹</span><span class="lang-name">Italiano</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="95"></span></span><span class="lang-pct">95%</span></li>
+              <li><span class="lang-flag">🇨🇿</span><span class="lang-name">Checo</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="67"></span></span><span class="lang-pct">67%</span></li>
+              <li><span class="lang-flag">🇹🇷</span><span class="lang-name">Turco</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="57"></span></span><span class="lang-pct">57%</span></li>
+              <li><span class="lang-flag">🇷🇴</span><span class="lang-name">Rumano</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="55"></span></span><span class="lang-pct">55%</span></li>
+              <li><span class="lang-flag">🇬🇷</span><span class="lang-name">Griego</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="54"></span></span><span class="lang-pct">54%</span></li>
+              <li><span class="lang-flag">🇷🇺</span><span class="lang-name">Ruso</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="53"></span></span><span class="lang-pct">53%</span></li>
+              <li><span class="lang-flag">🇯🇵</span><span class="lang-name">Japonés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="53"></span></span><span class="lang-pct">53%</span></li>
+              <li><span class="lang-flag">🇸🇦</span><span class="lang-name">Árabe</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="52"></span></span><span class="lang-pct">52%</span></li>
+              <li><span class="lang-flag">🇳🇱</span><span class="lang-name">Holandés</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="50"></span></span><span class="lang-pct">50%</span></li>
+              <li><span class="lang-flag">🇵🇱</span><span class="lang-name">Polaco</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="48"></span></span><span class="lang-pct">48%</span></li>
+              <li><span class="lang-flag">🇨🇳</span><span class="lang-name">Chino</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="47"></span></span><span class="lang-pct">47%</span></li>
+              <li><span class="lang-flag">🇰🇷</span><span class="lang-name">Coreano</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="45"></span></span><span class="lang-pct">45%</span></li>
+              <li><span class="lang-flag">🇭🇺</span><span class="lang-name">Húngaro</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="42"></span></span><span class="lang-pct">42%</span></li>
+              <li><span class="lang-flag">🇮🇱</span><span class="lang-name">Hebreo</span><span class="lang-bar"><span class="lang-bar-fill" data-pct="37"></span></span><span class="lang-pct">37%</span></li>
             </ul>
+            <p class="cov-note">
+              Cómo se calcula: tamaño de la blocklist (60 pts, saturación a
+              80 entradas) + función fonética propia (20 pts) + matching
+              Aho-Corasick + joke names (20 pts). El objetivo es subir
+              todos a ≥80% — los próximos PRs amplían las listas con
+              fuentes de la comunidad open source.
+            </p>
           </div>
 
           <div class="cov-card">
