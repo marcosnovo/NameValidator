@@ -58,6 +58,7 @@ const AI_KEY = 'halo.aikey.v1';
 let lastResult = null;
 let aiCfg = loadAiCfg();
 updateHealthBadge();
+updateHistoryBadge();
 
 // ── Validation flow ─────────────────────────────────────
 async function validate() {
@@ -243,11 +244,13 @@ function pushHistory(entry) {
   list.unshift(entry);
   saveHistory(list);
   renderHistory();
+  updateHistoryBadge();
 }
 
 function clearHistory() {
   saveHistory([]);
   renderHistory();
+  updateHistoryBadge();
 }
 
 function renderHistory() {
@@ -340,21 +343,33 @@ function providerLabel(p) {
 }
 
 function updateHealthBadge() {
+  const settingsLabel = settingsBtn.querySelector('.tool-label');
   if (aiCfg?.apiKey) {
     const p = aiCfg.provider && aiCfg.provider !== 'auto'
       ? aiCfg.provider
       : detectProviderForUi(aiCfg.apiKey);
     healthStatus.className = 'health ok';
     healthStatus.textContent = `IA · ${providerLabel(p)} activa`;
+    if (settingsLabel) settingsLabel.textContent = `IA · ${providerLabel(p)}`;
+    settingsBtn.classList.add('has-value');
     skipAI.parentElement.classList.remove('disabled');
     skipAI.disabled = false;
   } else {
     healthStatus.className = 'health ok';
     healthStatus.textContent = 'modo estático · 19 idiomas';
+    if (settingsLabel) settingsLabel.textContent = 'Activar IA';
+    settingsBtn.classList.remove('has-value');
     skipAI.checked = true;
     skipAI.disabled = true;
     skipAI.parentElement.classList.add('disabled');
   }
+}
+
+function updateHistoryBadge() {
+  const label = historyBtn.querySelector('.tool-label');
+  if (!label) return;
+  const count = loadHistory().length;
+  label.textContent = count > 0 ? `Historial · ${count}` : 'Historial';
 }
 
 function showSettingsWarn(text, kind) {

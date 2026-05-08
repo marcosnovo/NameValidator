@@ -207,30 +207,55 @@ main {
 }
 #validate-btn:hover .btn-arrow { transform: translateX(2px); }
 
-/* ── Icon button (history) ───────────────────────────── */
-.icon-btn {
+/* ── Toolbar (acciones secundarias) ──────────────────── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.tool-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  padding: 0;
-  border-radius: 10px;
-  border: 0;
-  background: transparent;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-hi);
+  background: var(--bg-input);
   color: var(--fg-dim);
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 }
-.icon-btn:hover {
+.tool-btn:hover {
   background: var(--bg-input-hi);
   color: var(--fg);
+  border-color: rgba(251, 191, 36, 0.4);
 }
-.icon-btn[aria-expanded="true"] {
-  background: var(--bg-input-hi);
+.tool-btn:active { transform: translateY(1px); }
+.tool-btn[aria-expanded="true"] {
+  background: rgba(251, 191, 36, 0.14);
   color: var(--accent);
+  border-color: var(--accent);
+}
+.tool-btn .tool-icon {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+}
+.tool-btn .tool-label { white-space: nowrap; }
+.tool-btn.has-value {
+  border-color: rgba(52, 211, 153, 0.45);
+  color: var(--ok);
+}
+.tool-btn.has-value .tool-icon { color: var(--ok); }
+.tool-btn.has-value[aria-expanded="true"] {
+  background: rgba(52, 211, 153, 0.12);
 }
 
 /* ── History panel ────────────────────────────────────── */
