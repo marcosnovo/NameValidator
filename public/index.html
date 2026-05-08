@@ -13,7 +13,7 @@
       <p class="tagline">
         Test de nombres aptos para mostrarse en el HALO del Santiago Bernabéu.
         Detecta lenguaje soez, slurs, nombres-broma y trampas fonéticas en
-        <strong>ES · EN · FR</strong>.
+        <strong>19 idiomas</strong> con normalización avanzada y fallback a IA.
       </p>
     </header>
 
@@ -83,6 +83,103 @@
         </details>
       </section>
 
+      <section class="panel coverage">
+        <h3>Qué cubre el sistema</h3>
+        <p class="coverage-intro">
+          Validación multi-capa pensada para el HALO del Bernabéu: normaliza
+          la entrada, comprueba contra listas curadas en
+          <strong>19 idiomas</strong>, detecta nombres-broma fonéticos,
+          y sólo recurre a la IA cuando hay duda real.
+        </p>
+
+        <div class="coverage-grid">
+          <div class="cov-card">
+            <div class="cov-head">
+              <span class="cov-num">19</span>
+              <span class="cov-title">Idiomas con listas propias</span>
+            </div>
+            <ul class="cov-list">
+              <li><span class="flag">🇪🇸</span> Español</li>
+              <li><span class="flag">🇬🇧</span> Inglés</li>
+              <li><span class="flag">🇫🇷</span> Francés</li>
+              <li><span class="flag">🇵🇹</span> Portugués</li>
+              <li><span class="flag">🇩🇪</span> Alemán</li>
+              <li><span class="flag">🇮🇹</span> Italiano</li>
+              <li><span class="flag">🇳🇱</span> Holandés</li>
+              <li><span class="flag">🇵🇱</span> Polaco</li>
+              <li><span class="flag">🇷🇺</span> Ruso</li>
+              <li><span class="flag">🇨🇿</span> Checo</li>
+              <li><span class="flag">🇭🇺</span> Húngaro</li>
+              <li><span class="flag">🇬🇷</span> Griego</li>
+              <li><span class="flag">🇹🇷</span> Turco</li>
+              <li><span class="flag">🇷🇴</span> Rumano</li>
+              <li><span class="flag">🇸🇦</span> Árabe</li>
+              <li><span class="flag">🇮🇱</span> Hebreo</li>
+              <li><span class="flag">🇨🇳</span> Chino</li>
+              <li><span class="flag">🇯🇵</span> Japonés</li>
+              <li><span class="flag">🇰🇷</span> Coreano</li>
+            </ul>
+          </div>
+
+          <div class="cov-card">
+            <div class="cov-head">
+              <span class="cov-num">5</span>
+              <span class="cov-title">Capas de validación</span>
+            </div>
+            <ul class="cov-list ordered">
+              <li><strong>Format check</strong> — longitud, caracteres permitidos, Unicode legítimo</li>
+              <li><strong>Normalización</strong> — NFD, leet (4→a, 0→o…), confusables cirílico/griego, fonético</li>
+              <li><strong>Listas estáticas</strong> — profanity, slurs, jokes, exact-only, scunthorpe whitelist</li>
+              <li><strong>Aho-Corasick</strong> — detección multi-patrón con tolerancia a separadores</li>
+              <li><strong>IA (Claude / GPT / Gemini)</strong> — fallback con voto de confianza para casos ambiguos</li>
+            </ul>
+          </div>
+
+          <div class="cov-card">
+            <div class="cov-head">
+              <span class="cov-num">∞</span>
+              <span class="cov-title">Trampas que detecta</span>
+            </div>
+            <ul class="cov-list">
+              <li>Profanity directa en cualquier idioma</li>
+              <li>Nombres-broma fonéticos (Aitor Tilla, Helio Cóptero, Mike Hunt…)</li>
+              <li>Slurs racistas, homófobos, religiosos</li>
+              <li>Apología nazi / fascista / terrorista</li>
+              <li>Figuras históricas controvertidas (dictadores, criminales)</li>
+              <li>Substituciones leet (pu7@, F.U.C.K, p_u_t_a)</li>
+              <li>Reverso (atup → puta)</li>
+              <li>Caracteres confusables (а cirílico vs a latino)</li>
+              <li>Espacios y separadores artificiales</li>
+              <li>Nombres del Real Madrid usados de forma ofensiva</li>
+            </ul>
+          </div>
+
+          <div class="cov-card">
+            <div class="cov-head">
+              <span class="cov-num">3</span>
+              <span class="cov-title">Plataformas</span>
+            </div>
+            <ul class="cov-list">
+              <li><strong>Web</strong> (este sitio) — para test y operación de oficina</li>
+              <li><strong>Móvil iOS / Android</strong> — Flutter, con cámara+OCR del DNI/pasaporte y NFC del DNI 3.0 (en desarrollo)</li>
+              <li><strong>API directa</strong> — Cloudflare Worker, integrable en cualquier sistema</li>
+            </ul>
+            <p class="cov-note">
+              Toda la lógica vive en el Worker. Web y móvil son clientes
+              finos del mismo backend → cualquier mejora se propaga
+              automáticamente a las dos plataformas.
+            </p>
+          </div>
+        </div>
+
+        <div class="coverage-meta">
+          <div class="meta-pill"><span>⚡</span> &lt;5 ms con cache (KV)</div>
+          <div class="meta-pill"><span>🔒</span> GDPR · sin datos personales en logs</div>
+          <div class="meta-pill"><span>🌍</span> Edge global (Cloudflare)</div>
+          <div class="meta-pill"><span>🧠</span> Multi-provider AI (Claude / GPT / Gemini)</div>
+        </div>
+      </section>
+
       <section class="panel examples">
         <h3>Casos de prueba sugeridos</h3>
         <p>Haz clic en cualquiera para validarlo automáticamente.</p>
@@ -112,8 +209,9 @@
 
     <footer>
       <small>
-        Sistema multi-capa · normalización + listas ES/EN/FR + Claude Opus 4.7.
-        Si dudas, marca <strong>REVIEW</strong> con la duda en porcentaje.
+        Sistema multi-capa · normalización + listas en 19 idiomas + IA
+        (Claude / GPT / Gemini). Si dudas, marca <strong>REVIEW</strong>
+        con la duda en porcentaje.
       </small>
     </footer>
 
