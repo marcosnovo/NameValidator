@@ -27,6 +27,7 @@ import { koreanProfanity, koreanJokeNames, koreanExactOnly } from '../blocklists
 import { hebrewProfanity, hebrewJokeNames, hebrewExactOnly } from '../blocklists/hebrew.js';
 import { hungarianProfanity, hungarianJokeNames, hungarianExactOnly } from '../blocklists/hungarian.js';
 import { dutchProfanity, dutchJokeNames, dutchExactOnly } from '../blocklists/dutch.js';
+import { czechProfanity, czechJokeNames, czechExactOnly } from '../blocklists/czech.js';
 import { spanishExternal } from '../blocklists/external/es.js';
 import { englishExternal } from '../blocklists/external/en.js';
 import { frenchExternal } from '../blocklists/external/fr.js';
@@ -50,6 +51,7 @@ import {
   phoneticDe, phoneticIt, phoneticRu, phoneticPl, phoneticAr,
   phoneticEl, phoneticTr, phoneticRo,
   phoneticZh, phoneticJa, phoneticKo, phoneticHe, phoneticHu, phoneticNl,
+  phoneticCs,
 } from '../normalize.js';
 import { buildAhoCorasick } from '../lib/ahoCorasick.js';
 import { fuzzyContains } from '../lib/fuzzyMatch.js';
@@ -74,6 +76,7 @@ const PHONETIC_FN = {
   he: phoneticHe,
   hu: phoneticHu,
   nl: phoneticNl,
+  cs: phoneticCs,
 };
 
 // Aplana todas las palabras-broma a sus formas concatenadas y precalcula
@@ -98,6 +101,7 @@ const jokeForms = [
   ...hebrewJokeNames.map(([form, why]) => ({ form, why, lang: 'he', phonetic: phoneticHe(form) })),
   ...hungarianJokeNames.map(([form, why]) => ({ form, why, lang: 'hu', phonetic: phoneticHu(form) })),
   ...dutchJokeNames.map(([form, why]) => ({ form, why, lang: 'nl', phonetic: phoneticNl(form) })),
+  ...czechJokeNames.map(([form, why]) => ({ form, why, lang: 'cs', phonetic: phoneticCs(form) })),
 ];
 
 // ─── Aho-Corasick: pre-construido al cargar el módulo ─────────────────────
@@ -140,6 +144,7 @@ const acKO = buildLangAC(koreanProfanity, [], koreanExactOnly);
 const acHE = buildLangAC(hebrewProfanity, [], hebrewExactOnly);
 const acHU = buildLangAC(hungarianProfanity, [], hungarianExactOnly);
 const acNL = buildLangAC(dutchProfanity, [], dutchExactOnly);
+const acCS = buildLangAC(czechProfanity, [], czechExactOnly);
 
 // AC fonético (mismas listas pero con cada palabra transformada)
 const acESPhonetic = buildAhoCorasick(
@@ -232,12 +237,18 @@ const acNLPhonetic = buildAhoCorasick(
     .filter((w) => typeof w === 'string' && !dutchExactOnly.has(w) && w.length >= 3)
     .map((w) => [phoneticNl(w.replace(/\s/g, '')), w])
 );
+const acCSPhonetic = buildAhoCorasick(
+  czechProfanity
+    .filter((w) => typeof w === 'string' && !czechExactOnly.has(w) && w.length >= 3)
+    .map((w) => [phoneticCs(w.replace(/\s/g, '')), w])
+);
 
 const acByLang = {
   es: acES, en: acEN, fr: acFR, pt: acPT,
   de: acDE, it: acIT, ru: acRU, pl: acPL, ar: acAR,
   el: acEL, tr: acTR, ro: acRO,
   zh: acZH, ja: acJA, ko: acKO, he: acHE, hu: acHU, nl: acNL,
+  cs: acCS,
 };
 const acPhoneticByLang = {
   es: acESPhonetic, en: acENPhonetic, fr: acFRPhonetic, pt: acPTPhonetic,
@@ -246,6 +257,7 @@ const acPhoneticByLang = {
   el: acELPhonetic, tr: acTRPhonetic, ro: acROPhonetic,
   zh: acZHPhonetic, ja: acJAPhonetic, ko: acKOPhonetic,
   he: acHEPhonetic, hu: acHUPhonetic, nl: acNLPhonetic,
+  cs: acCSPhonetic,
 };
 
 // AC para joke names (todos los idiomas en uno, con metadata del idioma)
@@ -508,6 +520,7 @@ export function staticCheck(variants, options = {}) {
   checkProfanityList(hebrewProfanity,     hebrewExactOnly,     'he', variants, issues);
   checkProfanityList(hungarianProfanity,  hungarianExactOnly,  'hu', variants, issues);
   checkProfanityList(dutchProfanity,      dutchExactOnly,      'nl', variants, issues);
+  checkProfanityList(czechProfanity,      czechExactOnly,      'cs', variants, issues);
 
   // ── Nombres-broma conocidos — Aho-Corasick directo + fonético ───────────
   // O(n+matches) en vez de iterar 700 patrones. Sin Scunthorpe whitelist
@@ -519,7 +532,7 @@ export function staticCheck(variants, options = {}) {
       // Match fonético — buscamos en cada vista fonética con el AC del
       // idioma original del nombre (los joke names ES → phoneticEs, etc.)
       // Como acJokesPhonetic mezcla idiomas, intentamos en cada vista.
-      for (const lang of ['es', 'en', 'fr', 'pt', 'de', 'it', 'ru', 'pl', 'ar', 'el', 'tr', 'ro', 'zh', 'ja', 'ko', 'he', 'hu', 'nl']) {
+      for (const lang of ['es', 'en', 'fr', 'pt', 'de', 'it', 'ru', 'pl', 'ar', 'el', 'tr', 'ro', 'zh', 'ja', 'ko', 'he', 'hu', 'nl', 'cs']) {
         const view = variants[`phonetic${lang.charAt(0).toUpperCase() + lang.slice(1)}`];
         if (!view) continue;
         m = acJokesPhonetic.firstMatch(view);
