@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=2712f9cc" />
   </head>
   <body>
     <div class="bg-grain" aria-hidden="true"></div>
@@ -58,6 +58,17 @@
             aria-expanded="false"
           >
             <span aria-hidden="true">⚙</span>
+          </button>
+          <button
+            id="coverage-btn"
+            type="button"
+            class="icon-btn"
+            title="Cobertura del validador"
+            aria-label="Cobertura"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">▦</span>
           </button>
           <button id="validate-btn" type="button">
             <span class="btn-label">Validar</span>
@@ -110,6 +121,20 @@
             <button type="button" id="ai-clear" class="link-btn">olvidar clave</button>
           </div>
           <p class="settings-warn" id="settings-warn" hidden></p>
+        </div>
+
+        <div class="coverage hidden" id="coverage-panel" aria-label="Cobertura del validador">
+          <div class="coverage-head">
+            <span>Cobertura — qué cubre este validador</span>
+            <button type="button" id="coverage-close" class="link-btn">cerrar</button>
+          </div>
+          <div class="coverage-summary" id="coverage-summary"></div>
+          <div class="coverage-langs-head">
+            <span>Idiomas</span>
+            <span class="coverage-legend">prof · joke · exact</span>
+          </div>
+          <ul class="coverage-langs" id="coverage-langs"></ul>
+          <div class="coverage-extra" id="coverage-extra"></div>
         </div>
 
         <div class="field-meta">
@@ -177,6 +202,6 @@
       </footer>
     </main>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=98b5514a"></script>
   </body>
 </html>

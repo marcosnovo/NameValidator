@@ -416,6 +416,119 @@ main {
   border-left-color: var(--ok);
 }
 
+/* ── Coverage panel ───────────────────────────────────── */
+.coverage.hidden { display: none; }
+.coverage {
+  margin-top: -8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-hi);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fade-in 0.2s cubic-bezier(0.2, 0.9, 0.4, 1);
+}
+.coverage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-faint);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+.coverage-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.coverage-stat {
+  background: var(--bg-input-hi);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.coverage-stat-num {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1;
+}
+.coverage-stat-label {
+  font-size: 0.72rem;
+  color: var(--fg-dim);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.coverage-langs-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-faint);
+}
+.coverage-legend { font-size: 0.62rem; color: var(--fg-faint); opacity: 0.7; }
+.coverage-langs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 12px;
+}
+.coverage-langs li {
+  display: grid;
+  grid-template-columns: 1.4em 1fr auto;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.84rem;
+}
+.coverage-langs .lang-code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+}
+.coverage-langs .lang-name { color: var(--fg); }
+.coverage-langs .lang-counts {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--fg-dim);
+}
+.coverage-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--fg-dim);
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+.coverage-extra .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.coverage-extra .row strong {
+  font-weight: 500;
+  color: var(--fg);
+}
+.coverage-extra .row .num {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
 /* ── Link / inline buttons ────────────────────────────── */
 .link-btn {
   background: transparent;
