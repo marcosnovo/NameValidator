@@ -20,49 +20,84 @@
 //  - Bloqueamos como subcadena en concatNoSpaces.
 //  - Tokens muy cortos / ambiguos en `greekExactOnly`.
 
+// Fuentes externas consultadas (datos derivados / inspirados):
+//   ▸ github.com/LDNOOBWV2/List-of-Dirty-… (CC0) — `el.txt`
 export const greekProfanity = [
   // ── Núcleo vulgar griego (transliteración común)
-  'malakas', 'malaka', 'malakes', 'malakies',           // μαλάκας
-  'vlakas', 'vlakes', 'vlakeia', 'vlakos',              // βλάκας (idiota)
-  'gamoto', 'gamisou', 'gamiseta',                       // γαμώτο/γαμήσου
-  'gamisi', 'gamisia', 'gamiete',
-  'archidi', 'arxidi', 'archidia', 'arxidia',           // αρχίδι (cojón)
-  'puthana', 'putana', 'poutana', 'poutanes',           // πουτάνα
-  'gaidouri', 'gaidouria',                               // γαϊδούρι (burro/bestia)
-  'kerato', 'keratomanos', 'keratos',                    // κέρατο (cuerno/cornudo)
-  'mounis', 'mouni', 'mounaki',                          // vagina vulgar
-  'pousthros', 'pousti', 'poustis', 'pousties',          // πούστης (slur homófobo)
-  'aderfos', // (ambiguo — sólo en contexto homofóbico)
+  'malakas', 'malaka', 'malakes', 'malakies',          // μαλάκας
+  'malakeia', 'malakomanos', 'malakomenos',
+  'vlakas', 'vlakes', 'vlakeia', 'vlakos',             // βλάκας (idiota)
+  'vlakeies',
+  'gamoto', 'gamisou', 'gamiseta', 'gamietai',         // γαμώτο/γαμήσου
+  'gamisi', 'gamisia', 'gamiete', 'gamiseteles',
+  'gamomenos', 'gamomeno', 'gamomenoi',
+  'gamietai-i-mana-sou', 'gamioles', 'gamiolis',
+  'archidi', 'arxidi', 'archidia', 'arxidia',          // αρχίδι (cojón)
+  'puthana', 'putana', 'poutana', 'poutanes',          // πουτάνα
+  'poutanaki', 'poutanakigia',
+  'gaidouri', 'gaidouria',                             // γαϊδούρι (burro/bestia)
+  'kerato', 'keratomanos', 'keratos', 'keratomenos',   // κέρατο (cuerno/cornudo)
+  'mounis', 'mouni', 'mounaki', 'mouniari',            // vagina vulgar
+  'pousthros', 'pousti', 'poustis', 'pousties',        // πούστης (slur homófobo)
+  'poustres', 'poustaras', 'poustomatziki',
+  'aderfos',                                           // (ambiguo — sólo en contexto homofóbico)
   'aderfismos',
-  'tsoula', 'tsoules',                                   // τσούλα
-  'vromiari', 'vromiaria',                               // βρωμιάρης
-  'kareklas',                                            // jerga vulgar
-  'gamao', 'gamame', 'gameno',                           // γαμώ
-  'skata', 'skatosa',                                    // σκατά (mierda)
+  'tsoula', 'tsoules', 'tsoularas',                    // τσούλα
+  'vromiari', 'vromiaria', 'vromiaridis',              // βρωμιάρης
+  'kareklas',                                          // jerga vulgar
+  'gamao', 'gamame', 'gameno', 'gamiseten',            // γαμώ
+  'skata', 'skatosa', 'skatofatsa', 'skatofatsamas',   // σκατά (mierda)
+  'skatomania', 'skatompasis',
   'kolarakis', 'kolaraki',
-  'kolos', 'kolokoutsoura',                              // κώλος (culo)
-  'gomena',                                              // jerga vulgar (mujer)
+  'kolos', 'kolokoutsoura', 'kolotsouras',             // κώλος (culo)
+  'kolopaido', 'kolopaida', 'kolofardos',
+  'gomena',                                            // jerga vulgar (mujer)
+  'mounotrypa',                                        // vulgar
+  'kakomoiri', 'kakomoiri-mou',                        // peyorativo
+  'kavlomanis', 'kavla', 'kavlas',                     // sexual vulgar
+  'kavlonaikos',
+  'arxidaras',
+  'palioskylo', 'paliotomari',                         // peyorativo
+  'paliogriaspsofa',                                   // muy vulgar
+  'sklavos',                                           // peyorativo en algunos contextos
+  'ravdiou',
+  'klavomanikos',
+  'ekeinos-pou-vromaei',
+  'kotsides', 'kotsidaki',
+  'mageiritsogamos',
+  'kavlinos',
 
   // ── Slurs étnico-religiosos
-  'tsigganos', 'tsigganoi',                              // slur (gitanos)
-  'arvanitos', 'arvanitisas',                            // peyorativo
-  'mavros', 'mavri',                                     // ambiguo: literal "negro"
-  'kineisaras', 'kinezos',                               // peyorativo (chinos)
-  'tourkos', 'tourkoi',                                  // ambiguo, depende del contexto
-  'ovrios', 'ovrioi',                                    // peyorativo (judíos)
-  'bouligaroi',                                          // peyorativo
-  'fasistas',                                            // ambiguo
+  'tsigganos', 'tsigganoi',                            // slur (gitanos)
+  'arvanitos', 'arvanitisas',                          // peyorativo
+  'mavros', 'mavri',                                   // ambiguo: literal "negro"
+  'kineisaras', 'kinezos',                             // peyorativo (chinos)
+  'tourkos', 'tourkoi', 'tourkosporos',                // ambiguo, depende del contexto
+  'tourkalas', 'tourkomania',                          // peyorativo más fuerte
+  'ovrios', 'ovrioi', 'ovrios-okhi',                   // peyorativo (judíos)
+  'bouligaroi', 'voulgaros',                           // peyorativo (búlgaros)
+  'skopianos',                                         // peyorativo en disputa de Macedonia
+  'fasistas',                                          // ambiguo
+  'arvaniti',
+  'pakistanaki',                                       // peyorativo
+  'mavrouli',                                          // peyorativo
 
   // ── Apología extremista (nacionalismo extremo, Junta de los coroneles)
-  'xrysiavgi', 'chrysiavgi', 'chrysi-avgi',              // Aurora Dorada (neonazi)
-  'xa', 'thaerthi', 'thaerthi-xa',                       // chants neonazi
-  'ellineixrysi',
-  'antartis',                                            // ambiguo
+  'xrysiavgi', 'chrysiavgi', 'chrysi-avgi',            // Aurora Dorada (neonazi)
+  'xa', 'thaerthi', 'thaerthi-xa',                     // chants neonazi
+  'ellineixrysi', 'ellinikon-xrysi-avgi',
+  'antartis',                                          // ambiguo
+  'mihalolaikofan',                                    // pro-Mihaloliakos (líder XA)
+  'metaxasfan',                                        // pro-régimen Metaxas
+  'papadopoulosfan',                                   // pro-Junta de los coroneles
+  'eokakallergi',                                      // referencia controvertida
+  'enosifan',                                          // ambiguo
 
   // ── Frases compuestas / dobles sentidos
-  'kafromounis',
-  'pordi',                                               // πέρδω (pedo)
-  'archidofatsa', 'arxidofatsa',                         // "cara de cojón"
+  'kafromounis', 'kafrohani',
+  'pordi', 'porderia',                                 // πέρδω (pedo)
+  'archidofatsa', 'arxidofatsa',                       // "cara de cojón"
+  'putsofatsa', 'malakaki',                            // "cara de pene"
 ];
 
 export const greekJokeNames = [
