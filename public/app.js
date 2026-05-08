@@ -146,3 +146,23 @@ document.querySelectorAll('.ex').forEach((btn) => {
 
 checkHealth();
 input.focus();
+
+// Anima las barras de robustez por idioma cuando entran en viewport
+const langBars = document.querySelectorAll('.lang-bar-fill');
+if (langBars.length && 'IntersectionObserver' in window) {
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        const pct = e.target.getAttribute('data-pct');
+        e.target.style.width = pct + '%';
+        io.unobserve(e.target);
+      }
+    }
+  }, { threshold: 0.2 });
+  langBars.forEach((b) => io.observe(b));
+} else {
+  // Fallback sin IO: rellenar de inmediato
+  langBars.forEach((b) => {
+    b.style.width = b.getAttribute('data-pct') + '%';
+  });
+}
