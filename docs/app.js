@@ -1,8 +1,7 @@
-// HALO Name Validator — frontend para GitHub Pages.
+// HALO Name Validator — frontend GitHub Pages (standalone).
 //
-// Modo standalone (sin backend): toda la validación se ejecuta en el
-// navegador usando lib/validator.js. Pages no tiene /api/ — la capa
-// estática ya cubre 19 idiomas a ≥80%, suficiente para una demo pública.
+// Pages no expone /api/ → toda la validación corre en el navegador
+// usando lib/validator.js. La capa estática cubre 19 idiomas a ≥80%.
 
 import { validateName } from './lib/validator.js';
 
@@ -24,10 +23,8 @@ const metaLayers = $('#meta-layers');
 const rawJson = $('#raw-json');
 const healthStatus = $('#health-status');
 
-function setHealthStatic() {
-  healthStatus.className = 'health ok';
-  healthStatus.textContent = 'modo estático (19 idiomas a ≥80%)';
-}
+healthStatus.className = 'health ok';
+healthStatus.textContent = 'modo estático · 19 idiomas';
 
 async function validate() {
   const name = input.value.trim();
@@ -37,7 +34,10 @@ async function validate() {
   }
 
   button.disabled = true;
-  button.textContent = 'Validando…';
+  const oldLabel = button.querySelector('.btn-label')?.textContent;
+  if (button.querySelector('.btn-label')) {
+    button.querySelector('.btn-label').textContent = 'Validando…';
+  }
 
   const t0 = performance.now();
   try {
@@ -48,7 +48,9 @@ async function validate() {
     renderError(err);
   } finally {
     button.disabled = false;
-    button.textContent = 'Validar';
+    if (button.querySelector('.btn-label')) {
+      button.querySelector('.btn-label').textContent = oldLabel ?? 'Validar';
+    }
   }
 }
 
@@ -57,9 +59,9 @@ function render(data) {
 
   verdictPill.className = `verdict ${data.verdict}`;
   verdictPill.textContent =
-    data.verdict === 'ALLOWED' ? 'PERMITIDO' :
-    data.verdict === 'REVIEW' ? 'REVISAR' :
-    data.verdict === 'REJECTED' ? 'RECHAZADO' :
+    data.verdict === 'ALLOWED' ? 'Permitido' :
+    data.verdict === 'REVIEW' ? 'Revisar' :
+    data.verdict === 'REJECTED' ? 'Rechazado' :
     data.verdict ?? '—';
 
   const doubt = Math.max(0, Math.min(100, data.doubt_percent ?? 0));
@@ -72,7 +74,7 @@ function render(data) {
     const li = document.createElement('li');
     li.className = reason.severity ?? 'low';
     li.innerHTML = `
-      <span class="src">${reason.source}</span>
+      <span class="src">${escapeHtml(reason.source ?? '')}</span>
       ${escapeHtml(reason.message)}
     `;
     reasonsList.appendChild(li);
@@ -86,12 +88,12 @@ function render(data) {
 
   metaInput.textContent = data.input ?? '—';
   metaConcat.textContent = data.normalized?.concatNoSpaces ?? '—';
-  metaDeleeted.textContent = data.normalized?.deLeeted ?? '—';
+  if (metaDeleeted) {
+    metaDeleeted.textContent = data.normalized?.deLeeted ?? '—';
+  }
   const ls = data.layer_summary ?? {};
   metaLayers.textContent =
-    `format=${ls.format_issues ?? 0} · ` +
-    `static=${ls.static_issues ?? 0} · ` +
-    `ai=${ls.ai_run ? '✓' : '✗ (estático)'}`;
+    `format=${ls.format_issues ?? 0} · static=${ls.static_issues ?? 0} · ai=${ls.ai_run ? '✓' : '—'}`;
 
   rawJson.textContent = JSON.stringify(data, null, 2);
 }
@@ -99,7 +101,7 @@ function render(data) {
 function renderError(err) {
   result.classList.remove('hidden');
   verdictPill.className = 'verdict REJECTED';
-  verdictPill.textContent = 'ERROR';
+  verdictPill.textContent = 'Error';
   doubtPill.textContent = 'duda ?';
   elapsedPill.textContent = '–';
   meterFill.style.width = '0%';
@@ -126,29 +128,9 @@ input.addEventListener('keydown', (e) => {
 });
 document.querySelectorAll('.ex').forEach((btn) => {
   btn.addEventListener('click', () => {
-    input.value = btn.textContent;
+    input.value = btn.textContent.trim();
     validate();
   });
 });
 
-setHealthStatic();
 input.focus();
-
-// Anima las barras de robustez por idioma cuando entran en viewport.
-const langBars = document.querySelectorAll('.lang-bar-fill');
-if (langBars.length && 'IntersectionObserver' in window) {
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (e.isIntersecting) {
-        const pct = e.target.getAttribute('data-pct');
-        e.target.style.width = pct + '%';
-        io.unobserve(e.target);
-      }
-    }
-  }, { threshold: 0.2 });
-  langBars.forEach((b) => io.observe(b));
-} else {
-  langBars.forEach((b) => {
-    b.style.width = b.getAttribute('data-pct') + '%';
-  });
-}
