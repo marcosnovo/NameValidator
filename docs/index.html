@@ -37,10 +37,29 @@
             spellcheck="false"
             placeholder="Vinicius Jr., Aitor Tilla, Mike Hunt…"
           />
+          <button
+            id="history-btn"
+            type="button"
+            class="icon-btn"
+            title="Historial (Cmd/Ctrl+K)"
+            aria-label="Historial"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">⌘</span>
+          </button>
           <button id="validate-btn" type="button">
             <span class="btn-label">Validar</span>
             <span class="btn-arrow" aria-hidden="true">→</span>
           </button>
+        </div>
+
+        <div class="history hidden" id="history-panel" role="listbox" aria-label="Validaciones recientes">
+          <div class="history-head">
+            <span>Recientes</span>
+            <button type="button" id="history-clear" class="link-btn">vaciar</button>
+          </div>
+          <ul id="history-list"></ul>
         </div>
 
         <div class="field-meta">
@@ -48,6 +67,9 @@
             <input type="checkbox" id="skip-ai" />
             <span>Sólo capa estática (sin IA)</span>
           </label>
+          <span class="shortcuts" aria-hidden="true">
+            <kbd>/</kbd> enfoca · <kbd>Esc</kbd> limpia · <kbd>⌘K</kbd> historial
+          </span>
           <span class="health" id="health-status">…</span>
         </div>
 
@@ -67,6 +89,9 @@
             <span class="doubt" id="doubt-pill">duda 0%</span>
             <span class="dot" aria-hidden="true">·</span>
             <span class="elapsed" id="elapsed-pill">0 ms</span>
+            <button id="share-btn" type="button" class="link-btn share-btn" title="Copiar enlace para compartir">
+              <span aria-hidden="true">↗</span> compartir
+            </button>
           </div>
 
           <div class="meter" aria-hidden="true">
@@ -78,7 +103,10 @@
           <ul id="reasons-list" class="reasons"></ul>
 
           <details class="detail">
-            <summary>Detalle técnico</summary>
+            <summary>
+              <span>Detalle técnico</span>
+              <button id="copy-json-btn" type="button" class="link-btn copy-btn" title="Copiar JSON">copiar JSON</button>
+            </summary>
             <dl class="meta">
               <dt>Input</dt><dd id="meta-input">—</dd>
               <dt>Concatenado</dt><dd id="meta-concat" class="mono">—</dd>
