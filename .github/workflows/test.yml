@@ -43,8 +43,6 @@ jobs:
           node --check src/contexts/realMadrid.js
           node --check src/contexts/fcBarcelona.js
           node --check proxy/cloudflare-worker.js
-          node --check docs/lib/ocr/aiVisionExtract.js
-          node --check docs/lib/ocr/documentScanner.js
           node --check docs/app.js
 
       - name: Run golden + adversarial test suite

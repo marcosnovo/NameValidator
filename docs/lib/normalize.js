@@ -201,6 +201,259 @@ function phoneticPt(s) {
     .replace(/ss/g, 's');
 }
 
+// Alemán. Equivalencias clave para evasión de blocklists:
+//   - ß → ss ("Scheiße" → "Scheisse" → ya en blocklist)
+//   - ä → ae, ö → oe, ü → ue (ya estará sin diacríticos en concatNoSpaces;
+//     pero algunos usuarios los teclean directos como "ae" — colapsamos
+//     "ae"→"a", "oe"→"o", "ue"→"u" para neutralizar variantes)
+//   - sch → sh (suena igual)
+//   - tsch → ch
+//   - tz → z (compresión común)
+//   - dt$ → t (mute final)
+//   - eh, ah, oh con vocal muda → vocal sola
+function phoneticDe(s) {
+  if (!s) return '';
+  return s
+    .replace(/ß/g, 'ss')
+    .replace(/sch/g, 'sh')
+    .replace(/tsch/g, 'ch')
+    .replace(/tz/g, 'z')
+    .replace(/(?<=[aeiou])h(?=[aeiou])/g, '')   // h intervocálica muda
+    .replace(/ae/g, 'a')
+    .replace(/oe/g, 'o')
+    .replace(/ue/g, 'u');
+}
+
+// Ruso transliterado. Pillamos variantes de transliteración comunes:
+//   - kh ↔ h ↔ x ("Khrushchev" / "Hrushchev" / "Xrushchev")
+//   - ch ↔ tch ("Tchaikovsky" / "Chaikovsky")
+//   - y/i confusión final (común en transliteraciones)
+//   - sh, zh sonidos específicos del cirílico
+//   - dobles colapsadas
+function phoneticRu(s) {
+  if (!s) return '';
+  return s
+    .replace(/kh/g, 'h')
+    .replace(/x/g, 'h')          // Xrushchev → Hrushchev
+    .replace(/tch/g, 'ch')
+    .replace(/sch/g, 'sh')
+    .replace(/zh/g, 'j')
+    .replace(/yj$/g, 'i')        // -yj final → -i
+    .replace(/yi$/g, 'i')
+    .replace(/iy$/g, 'i')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Polaco. Equivalencias clave:
+//   - cz → ch (suena como inglés "ch")
+//   - sz → sh
+//   - rz → zh ("Rzeszów" suena con zh)
+//   - dz → z (palatalización suave)
+//   - ł ya está convertida a l por stripDiacritics
+//   - ą → on, ę → en (no cubrimos exhaustivo, ya pasa por NFD)
+function phoneticPl(s) {
+  if (!s) return '';
+  return s
+    .replace(/cz/g, 'ch')
+    .replace(/sz/g, 'sh')
+    .replace(/rz/g, 'zh')
+    .replace(/dz/g, 'z')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Griego transliterado. Equivalencias clave:
+//   - th → t (los griegos suelen reducir θ → t en transliteración)
+//   - ph → f (φ → f)
+//   - ch → x ↔ k ("Christos" / "Xristos" / "Kristos")
+//   - kh → x → h
+//   - ou → u (ου = u)
+//   - ai → e (αι = e)
+//   - ei → i (ει = i)
+//   - oi → i (οι = i)
+//   - dobles colapsadas
+function phoneticEl(s) {
+  if (!s) return '';
+  return s
+    .replace(/th/g, 't')
+    .replace(/ph/g, 'f')
+    .replace(/ch/g, 'x')
+    .replace(/kh/g, 'h')
+    .replace(/ou/g, 'u')
+    .replace(/ai/g, 'e')
+    .replace(/ei/g, 'i')
+    .replace(/oi/g, 'i')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Turco. Equivalencias clave:
+//   - ş → s, ç → c (ya los hace stripDiacritics)
+//   - ı → i (también stripDiacritics)
+//   - ğ → '' (g muda — frecuente)
+//   - dobles colapsadas
+function phoneticTr(s) {
+  if (!s) return '';
+  return s
+    .replace(/ğ/g, '')
+    .replace(/ş/g, 's')
+    .replace(/ç/g, 'c')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Rumano. Equivalencias clave:
+//   - ă → a, î → i, â → a (ya stripDiacritics)
+//   - ș → s, ț → t (ya stripDiacritics)
+//   - dobles colapsadas
+function phoneticRo(s) {
+  if (!s) return '';
+  return s
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Chino mandarín (Pinyin). Equivalencias clave:
+//   - q → ch (Pinyin q se pronuncia como "ch" suave)
+//   - x → sh (Pinyin x se pronuncia como "sh" suave)
+//   - zh → j (aproximación)
+//   - números de tono ya filtrados por lettersOnly
+//   - dobles colapsadas
+function phoneticZh(s) {
+  if (!s) return '';
+  return s
+    .replace(/q/g, 'ch')
+    .replace(/zh/g, 'j')
+    .replace(/x/g, 'sh')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Japonés (romaji Hepburn). Equivalencias clave:
+//   - shi/chi/tsu — sólo simplificamos dobles
+//   - tsu → ts (suficiente para detección)
+//   - dobles colapsadas
+function phoneticJa(s) {
+  if (!s) return '';
+  return s
+    .replace(/tsu/g, 'tu')   // つ → tu (más corto, pilla "tsubasa" / "tubasa")
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Coreano (RR Romanization). Equivalencias clave:
+//   - eo → o, eu → u (vocales coreanas largas → cortas para fonético)
+//   - sh → s, ng → n (final)
+//   - dobles colapsadas
+function phoneticKo(s) {
+  if (!s) return '';
+  return s
+    .replace(/eo/g, 'o')
+    .replace(/eu/g, 'u')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Hebreo transliterado. Equivalencias clave:
+//   - kh ↔ ch ↔ h (ח / כ pueden transliterarse de varias formas)
+//   - tsa ↔ tza
+//   - dobles colapsadas
+function phoneticHe(s) {
+  if (!s) return '';
+  return s
+    .replace(/kh/g, 'h')
+    .replace(/ch/g, 'h')
+    .replace(/tza/g, 'tsa')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Húngaro. Equivalencias clave:
+//   - cs → ch (suena así)
+//   - sz → s (suena s suave)
+//   - zs → zh
+//   - gy → dy (palatalizada)
+//   - ny → n (palatalizada — como ñ)
+//   - ty → ty (palatalizada)
+//   - ly → y (yeísmo húngaro)
+//   - diacríticos ya quitados
+//   - dobles colapsadas
+function phoneticHu(s) {
+  if (!s) return '';
+  return s
+    .replace(/cs/g, 'ch')
+    .replace(/sz/g, 's')
+    .replace(/zs/g, 'zh')
+    .replace(/gy/g, 'dy')
+    .replace(/ny/g, 'n')
+    .replace(/ly/g, 'y')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Holandés. Equivalencias clave:
+//   - sch → s (la c muda en algunas posiciones)
+//   - ij → i (ij ligadura es vocal /ɛi/, simplificada)
+//   - oe → u (oe = u en holandés)
+//   - eu → o
+//   - ui → u
+//   - dobles colapsadas
+function phoneticNl(s) {
+  if (!s) return '';
+  return s
+    .replace(/sch/g, 's')
+    .replace(/ij/g, 'i')
+    .replace(/oe/g, 'u')
+    .replace(/eu/g, 'o')
+    .replace(/ui/g, 'u')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Checo. Equivalencias clave:
+//   - č → c, š → s, ž → z, ř → r (ya stripDiacritics)
+//   - ch → h (en checo "ch" es un sonido /x/, similar a la jota)
+//   - ý → y, ů → u (stripDiacritics)
+//   - dobles colapsadas
+function phoneticCs(s) {
+  if (!s) return '';
+  return s
+    .replace(/ch/g, 'h')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Árabe transliterado. Pillamos variantes muy comunes en "Arabizi":
+//   - 3 → a (sustitución típica de la letra ع ain)
+//   - 7 → h (sustitución típica de la letra ح)
+//   - 9 → q (sustitución típica de la letra ق)
+//   - kh ↔ x ↔ k ("Khaled" / "Xaled" / "Kaled")
+//   - aa/ee/oo dobladas → vocal simple
+//   - dobles colapsadas
+function phoneticAr(s) {
+  if (!s) return '';
+  return s
+    .replace(/3/g, 'a')        // 3in → a
+    .replace(/7/g, 'h')        // ha
+    .replace(/9/g, 'q')        // qaf
+    .replace(/kh/g, 'h')
+    .replace(/aa/g, 'a')
+    .replace(/ee/g, 'e')
+    .replace(/oo/g, 'u')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
+// Italiano. Equivalencias clave:
+//   - gli → li (sonido palatal — "figlio" → "filio")
+//   - gn → ñ→n ("gnocchi" → "nocchi" → "nochi")
+//   - gh+(e|i) → g (ahueca la i muda)
+//   - ch+(e|i) → k (ahueca la i muda)
+//   - sci/sce → shi/she (sibilante)
+//   - cc, gg, dobles → simples (haarmann tipo)
+//   - z al inicio → ts (sonido sordo)
+//   - quattro → kuattro
+function phoneticIt(s) {
+  if (!s) return '';
+  return s
+    .replace(/gli/g, 'li')
+    .replace(/gn/g, 'n')
+    .replace(/gh(?=[ei])/g, 'g')
+    .replace(/ch(?=[ei])/g, 'k')
+    .replace(/sci/g, 'shi')
+    .replace(/sce/g, 'she')
+    .replace(/qu/g, 'k')
+    .replace(/([bcdfgklmnprstvz])\1/g, '$1');
+}
+
 // Genera todas las particiones por espacio y devuelve las re-segmentaciones
 // posibles deslizando el corte. Útil para que el motor de concat no dependa
 // de los espacios elegidos por el usuario.
@@ -229,6 +482,21 @@ function buildVariants(raw) {
   const phoneticEnView = phoneticEn(concatNoSpaces);
   const phoneticFrView = phoneticFr(concatNoSpaces);
   const phoneticPtView = phoneticPt(concatNoSpaces);
+  const phoneticDeView = phoneticDe(concatNoSpaces);
+  const phoneticItView = phoneticIt(concatNoSpaces);
+  const phoneticRuView = phoneticRu(concatNoSpaces);
+  const phoneticPlView = phoneticPl(concatNoSpaces);
+  const phoneticArView = phoneticAr(concatNoSpaces);
+  const phoneticElView = phoneticEl(concatNoSpaces);
+  const phoneticTrView = phoneticTr(concatNoSpaces);
+  const phoneticRoView = phoneticRo(concatNoSpaces);
+  const phoneticZhView = phoneticZh(concatNoSpaces);
+  const phoneticJaView = phoneticJa(concatNoSpaces);
+  const phoneticKoView = phoneticKo(concatNoSpaces);
+  const phoneticHeView = phoneticHe(concatNoSpaces);
+  const phoneticHuView = phoneticHu(concatNoSpaces);
+  const phoneticNlView = phoneticNl(concatNoSpaces);
+  const phoneticCsView = phoneticCs(concatNoSpaces);
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
@@ -246,6 +514,21 @@ function buildVariants(raw) {
     phoneticEn: phoneticEnView, //   ph→f, ck→k
     phoneticFr: phoneticFrView, //   qu→k, ç→s, ph→f
     phoneticPt: phoneticPtView, //   nh→n, lh→l, h muda, ç→s
+    phoneticDe: phoneticDeView, //   ß→ss, sch→sh, ae/oe/ue colapsadas
+    phoneticIt: phoneticItView, //   gli→li, gn→n, sci→shi, dobles→simples
+    phoneticRu: phoneticRuView, //   kh→h→x, tch→ch, sh, zh→j
+    phoneticPl: phoneticPlView, //   cz→ch, sz→sh, rz→zh, dz→z
+    phoneticAr: phoneticArView, //   3→a, 7→h, 9→q (Arabizi)
+    phoneticEl: phoneticElView, //   th→t, ph→f, ch→x, ou→u, ai→e
+    phoneticTr: phoneticTrView, //   ğ muda, ş→s, ç→c
+    phoneticRo: phoneticRoView, //   dobles colapsadas (latino simple)
+    phoneticZh: phoneticZhView, //   q→ch, x→sh, zh→j (Pinyin)
+    phoneticJa: phoneticJaView, //   tsu→tu (romaji Hepburn)
+    phoneticKo: phoneticKoView, //   eo→o, eu→u (RR coreano)
+    phoneticHe: phoneticHeView, //   kh/ch→h
+    phoneticHu: phoneticHuView, //   cs→ch, sz→s, zs→zh, gy→dy, ny→n, ly→y
+    phoneticNl: phoneticNlView, //   sch→s, ij→i, oe→u, eu→o
+    phoneticCs: phoneticCsView, //   ch→h, dobles colapsadas
     tokens,               // ['aitor', 'tilla']
   };
 }
@@ -260,4 +543,19 @@ export {
   phoneticEn,
   phoneticFr,
   phoneticPt,
+  phoneticDe,
+  phoneticIt,
+  phoneticRu,
+  phoneticPl,
+  phoneticAr,
+  phoneticEl,
+  phoneticTr,
+  phoneticRo,
+  phoneticZh,
+  phoneticJa,
+  phoneticKo,
+  phoneticHe,
+  phoneticHu,
+  phoneticNl,
+  phoneticCs,
 };

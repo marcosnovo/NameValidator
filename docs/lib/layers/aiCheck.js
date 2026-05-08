@@ -1,5 +1,9 @@
-// Capa semántica: usa Claude Opus 4.7 vía fetch directo (universal — funciona
-// en Node 18+, navegadores y Cloudflare Workers, sin SDK de por medio).
+// Capa semántica multi-provider: usa Claude, GPT u otros vía fetch directo.
+//
+// Soporte de proveedores (auto-detección por prefijo de la API key):
+//   ▸ Anthropic Claude       — keys que empiezan con `sk-ant-`
+//   ▸ OpenAI GPT             — keys que empiezan con `sk-` (sin `sk-ant-`)
+//   ▸ Google Gemini          — keys de Google AI Studio (cadena alfanumérica)
 //
 // Hay dos modos:
 //
@@ -9,13 +13,8 @@
 //      servidor, NO en el navegador.
 //
 //   2. DIRECT MODE (Node con env, o demo browser con sessionStorage):
-//      El cliente pasa `apiKey` (o se resuelve desde process.env). La
-//      función llama directamente a api.anthropic.com.
-//
-// Optimizaciones (sólo en direct mode):
-//  - Prompt caching del system prompt con TTL 1h.
-//  - Adaptive thinking + effort:high.
-//  - Output estructurado vía json_schema.
+//      El cliente pasa `apiKey`. Auto-detectamos el provider por prefijo
+//      o se puede forzar con `provider: 'anthropic' | 'openai' | 'google'`.
 //
 // AVISO BROWSER DIRECT MODE: incluir tu API key en código que corre en el
 // navegador la expone a cualquier persona con acceso a esa pestaña. El
@@ -299,11 +298,36 @@ const RESPONSE_SCHEMA = {
 
 function resolveApiKey(passed) {
   if (passed) return passed;
-  // Node: process.env.ANTHROPIC_API_KEY
-  if (typeof process !== 'undefined' && process.env?.ANTHROPIC_API_KEY) {
-    return process.env.ANTHROPIC_API_KEY;
+  // Node: prueba env vars en orden (Anthropic primero por compatibilidad)
+  if (typeof process !== 'undefined' && process.env) {
+    return (
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      null
+    );
   }
   return null;
+}
+
+/**
+ * Detecta el proveedor a partir del prefijo de la API key.
+ * Heurística:
+ *   ▸ `sk-ant-...`            → anthropic (Claude)
+ *   ▸ `sk-...` (no sk-ant-)   → openai (GPT)
+ *   ▸ resto                   → google (Gemini AI Studio keys son
+ *                                 alfanuméricas sin prefijo distintivo)
+ *
+ * `provider` explícito tiene prioridad sobre la auto-detección.
+ */
+export function detectProvider(apiKey, override) {
+  if (override === 'anthropic' || override === 'openai' || override === 'google') {
+    return override;
+  }
+  if (typeof apiKey !== 'string' || !apiKey) return 'anthropic';
+  if (apiKey.startsWith('sk-ant-')) return 'anthropic';
+  if (apiKey.startsWith('sk-')) return 'openai';
+  return 'google';
 }
 
 export async function aiCheck(input, options = {}) {
@@ -355,8 +379,22 @@ export async function aiCheck(input, options = {}) {
     };
   }
 
-  const isBrowser = typeof window !== 'undefined';
+  const provider = detectProvider(apiKey, options.provider);
+  switch (provider) {
+    case 'anthropic':
+      return await callAnthropic(input, apiKey);
+    case 'openai':
+      return await callOpenAI(input, apiKey);
+    case 'google':
+      return await callGoogle(input, apiKey);
+    default:
+      return { enabled: true, error: `Provider desconocido: ${provider}` };
+  }
+}
 
+// ─── Anthropic Claude ───────────────────────────────────────────────────
+async function callAnthropic(input, apiKey) {
+  const isBrowser = typeof window !== 'undefined';
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
@@ -373,10 +411,7 @@ export async function aiCheck(input, options = {}) {
     thinking: { type: 'adaptive' },
     output_config: {
       effort: 'high',
-      format: {
-        type: 'json_schema',
-        schema: RESPONSE_SCHEMA,
-      },
+      format: { type: 'json_schema', schema: RESPONSE_SCHEMA },
     },
     system: [
       {
@@ -393,75 +428,197 @@ export async function aiCheck(input, options = {}) {
     ],
   };
 
-  let response;
-  try {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-  } catch (err) {
-    return {
-      enabled: true,
-      error: `Network error: ${err?.message ?? err}`,
-    };
-  }
+  const r = await fetchSafe('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (r.error) return { enabled: true, provider: 'anthropic', ...r };
 
-  if (!response.ok) {
-    let errorBody;
-    try {
-      errorBody = await response.json();
-    } catch {
-      errorBody = await response.text();
-    }
-    return {
-      enabled: true,
-      error: `HTTP ${response.status}`,
-      detail: errorBody,
-    };
-  }
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch (err) {
-    return {
-      enabled: true,
-      error: 'Respuesta no es JSON válido',
-    };
-  }
-
-  const textBlock = payload?.content?.find?.((b) => b.type === 'text');
+  const textBlock = r.payload?.content?.find?.((b) => b.type === 'text');
   if (!textBlock) {
     return {
       enabled: true,
-      error: 'Sin bloque de texto en la respuesta',
-      raw: payload,
+      provider: 'anthropic',
+      error: 'Sin bloque de texto',
+      raw: r.payload,
     };
   }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(textBlock.text);
-  } catch {
-    return {
-      enabled: true,
-      error: 'JSON inválido del modelo',
-      raw: textBlock.text,
-    };
-  }
-
   return {
     enabled: true,
     mode: 'direct',
-    ...parsed,
+    provider: 'anthropic',
+    model: 'claude-opus-4-7',
+    ...parseModelJson(textBlock.text, 'anthropic'),
     usage: {
-      input_tokens: payload.usage?.input_tokens ?? 0,
-      output_tokens: payload.usage?.output_tokens ?? 0,
-      cache_read_input_tokens: payload.usage?.cache_read_input_tokens ?? 0,
-      cache_creation_input_tokens: payload.usage?.cache_creation_input_tokens ?? 0,
+      input_tokens: r.payload.usage?.input_tokens ?? 0,
+      output_tokens: r.payload.usage?.output_tokens ?? 0,
+      cache_read_input_tokens: r.payload.usage?.cache_read_input_tokens ?? 0,
+      cache_creation_input_tokens: r.payload.usage?.cache_creation_input_tokens ?? 0,
     },
   };
+}
+
+// ─── OpenAI GPT ─────────────────────────────────────────────────────────
+async function callOpenAI(input, apiKey) {
+  const body = {
+    model: 'gpt-4o-2024-11-20',
+    max_completion_tokens: 1024,
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'halo_verdict',
+        strict: true,
+        schema: openaiSchema(),
+      },
+    },
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `Evalúa este input para mostrar en el HALO:\n\n<input>${input}</input>`,
+      },
+    ],
+  };
+
+  const r = await fetchSafe('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (r.error) return { enabled: true, provider: 'openai', ...r };
+
+  const text = r.payload?.choices?.[0]?.message?.content;
+  if (!text) {
+    return {
+      enabled: true,
+      provider: 'openai',
+      error: 'Sin contenido en la respuesta',
+      raw: r.payload,
+    };
+  }
+  return {
+    enabled: true,
+    mode: 'direct',
+    provider: 'openai',
+    model: r.payload.model || 'gpt-4o',
+    ...parseModelJson(text, 'openai'),
+    usage: {
+      input_tokens: r.payload.usage?.prompt_tokens ?? 0,
+      output_tokens: r.payload.usage?.completion_tokens ?? 0,
+    },
+  };
+}
+
+// ─── Google Gemini (AI Studio) ──────────────────────────────────────────
+async function callGoogle(input, apiKey) {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    `gemini-2.5-pro:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const body = {
+    systemInstruction: {
+      role: 'system',
+      parts: [{ text: SYSTEM_PROMPT }],
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: `Evalúa este input para mostrar en el HALO:\n\n<input>${input}</input>`,
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: googleSchema(),
+      temperature: 0.2,
+      maxOutputTokens: 1024,
+    },
+  };
+
+  const r = await fetchSafe(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (r.error) return { enabled: true, provider: 'google', ...r };
+
+  const text =
+    r.payload?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    return {
+      enabled: true,
+      provider: 'google',
+      error: 'Sin texto en la respuesta',
+      raw: r.payload,
+    };
+  }
+  return {
+    enabled: true,
+    mode: 'direct',
+    provider: 'google',
+    model: 'gemini-2.5-pro',
+    ...parseModelJson(text, 'google'),
+    usage: {
+      input_tokens: r.payload.usageMetadata?.promptTokenCount ?? 0,
+      output_tokens: r.payload.usageMetadata?.candidatesTokenCount ?? 0,
+    },
+  };
+}
+
+// ─── Helpers compartidos ────────────────────────────────────────────────
+async function fetchSafe(url, init) {
+  let response;
+  try {
+    response = await fetch(url, init);
+  } catch (err) {
+    return { error: `Network error: ${err?.message ?? err}` };
+  }
+  if (!response.ok) {
+    let detail;
+    try { detail = await response.json(); }
+    catch { detail = await response.text().catch(() => null); }
+    return { error: `HTTP ${response.status}`, detail };
+  }
+  let payload;
+  try { payload = await response.json(); }
+  catch { return { error: 'Respuesta no es JSON válido' }; }
+  return { payload };
+}
+
+function parseModelJson(text, provider) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Algunos providers (gemini) a veces envuelven el JSON en ```json ... ```
+    const cleaned = text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '');
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return { error: `JSON inválido del modelo ${provider}`, raw: text };
+    }
+  }
+}
+
+// OpenAI strict schema requiere que TODAS las propiedades estén en required
+// y additionalProperties:false. El nuestro ya cumple.
+function openaiSchema() {
+  return RESPONSE_SCHEMA;
+}
+
+// Google Gemini schema usa `enum` directamente como en JSON Schema y soporta
+// las mismas constraints. Compatible 1:1.
+function googleSchema() {
+  return RESPONSE_SCHEMA;
 }
 
 // Exporto el SYSTEM_PROMPT y el RESPONSE_SCHEMA para que el Cloudflare Worker

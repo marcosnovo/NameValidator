@@ -149,7 +149,7 @@ function worst(a, b) {
 
 export async function validateName(
   rawInput,
-  { skipAI = false, apiKey = null, proxyUrl = null } = {},
+  { skipAI = false, apiKey = null, proxyUrl = null, context = null } = {},
 ) {
   const t0 = Date.now();
   const formatIssues = formatCheck(rawInput);
@@ -161,7 +161,9 @@ export async function validateName(
   }
 
   const variants = buildVariants(rawInput);
-  const staticIssues = staticCheck(variants);
+  // `context` selecciona qué módulo de cliente aplicar (Real Madrid por
+  // defecto, FC Barcelona, NBA Lakers, etc.). Acepta string-id u objeto.
+  const staticIssues = staticCheck(variants, { context });
 
   // Si la capa estática ya encontró algo HIGH (REJECT seguro), nos
   // saltamos la IA — ahorro de tokens y latencia. Si sólo hay MEDIUM
