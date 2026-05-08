@@ -48,6 +48,17 @@
           >
             <span aria-hidden="true">⌘</span>
           </button>
+          <button
+            id="settings-btn"
+            type="button"
+            class="icon-btn"
+            title="Configurar IA"
+            aria-label="Configurar IA"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
           <button id="validate-btn" type="button">
             <span class="btn-label">Validar</span>
             <span class="btn-arrow" aria-hidden="true">→</span>
@@ -60,6 +71,45 @@
             <button type="button" id="history-clear" class="link-btn">vaciar</button>
           </div>
           <ul id="history-list"></ul>
+        </div>
+
+        <div class="settings hidden" id="settings-panel" aria-label="Configuración de IA">
+          <div class="settings-head">
+            <span>Capa IA — trae tu propia API key</span>
+            <button type="button" id="settings-close" class="link-btn">cerrar</button>
+          </div>
+          <p class="settings-note">
+            La clave vive sólo en <code>sessionStorage</code> de esta pestaña — se borra
+            al cerrarla. Nunca sale de tu navegador, va directo a la API del proveedor.
+          </p>
+          <div class="settings-row">
+            <label class="settings-label" for="ai-provider">Proveedor</label>
+            <select id="ai-provider" class="settings-input">
+              <option value="auto">Auto-detectar por prefijo</option>
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI (GPT)</option>
+              <option value="google">Google (Gemini)</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label class="settings-label" for="ai-key">API key</label>
+            <div class="settings-key-wrap">
+              <input
+                id="ai-key"
+                class="settings-input"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="sk-ant-… / sk-… / AIza…"
+              />
+              <button type="button" id="ai-key-toggle" class="link-btn" title="Mostrar/ocultar">ver</button>
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button type="button" id="ai-save" class="btn-primary">Guardar (sólo esta pestaña)</button>
+            <button type="button" id="ai-clear" class="link-btn">olvidar clave</button>
+          </div>
+          <p class="settings-warn" id="settings-warn" hidden></p>
         </div>
 
         <div class="field-meta">

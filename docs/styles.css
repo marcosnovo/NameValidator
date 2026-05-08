@@ -306,6 +306,116 @@ main {
 }
 .history li.empty:hover { background: transparent; }
 
+/* ── Settings panel (BYO API key) ─────────────────────── */
+.settings.hidden { display: none; }
+.settings {
+  margin-top: -8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-hi);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fade-in 0.2s cubic-bezier(0.2, 0.9, 0.4, 1);
+}
+.settings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-faint);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+.settings-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--fg-dim);
+  line-height: 1.5;
+}
+.settings-note code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-input-hi);
+  color: var(--fg);
+}
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-faint);
+}
+.settings-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-input-hi);
+  border: 1px solid var(--border-hi);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+.settings-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.settings-key-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-key-wrap .settings-input {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-warn {
+  margin: 0;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(244, 114, 114, 0.08);
+  color: var(--bad);
+  border-left: 2px solid var(--bad);
+}
+.settings-warn.ok {
+  background: rgba(52, 211, 153, 0.08);
+  color: var(--ok);
+  border-left-color: var(--ok);
+}
+
 /* ── Link / inline buttons ────────────────────────────── */
 .link-btn {
   background: transparent;
@@ -346,6 +456,11 @@ main {
   color: var(--fg-faint);
   letter-spacing: 0.01em;
 }
+.check.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.check.disabled input { cursor: not-allowed; }
 .shortcuts kbd {
   font-family: var(--font-mono);
   font-size: 0.72rem;

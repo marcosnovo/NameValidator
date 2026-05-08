@@ -149,7 +149,7 @@ function worst(a, b) {
 
 export async function validateName(
   rawInput,
-  { skipAI = false, apiKey = null, proxyUrl = null, context = null } = {},
+  { skipAI = false, apiKey = null, provider = null, proxyUrl = null, context = null } = {},
 ) {
   const t0 = Date.now();
   const formatIssues = formatCheck(rawInput);
@@ -172,7 +172,7 @@ export async function validateName(
   const staticBlocks = staticIssues.some((i) => i.severity === 'high');
   let ai = null;
   if (!skipAI && !staticBlocks) {
-    ai = await aiCheck(rawInput, { apiKey, proxyUrl });
+    ai = await aiCheck(rawInput, { apiKey, provider, proxyUrl });
   }
 
   const result = aggregate({ formatIssues, staticIssues, ai });
