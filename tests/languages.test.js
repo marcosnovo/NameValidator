@@ -347,3 +347,98 @@ test('hebreo — nombres legítimos pasan', async () => {
     assert.equal(r.verdict, 'ALLOWED', `${v} debería pasar (got ${r.verdict})`);
   }
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Cobertura Fase 1 — joke-names nuevos (re-segmentación fonética)
+//  ──────────────────────────────────────────────────────────────────────
+//  Verifica que los nuevos joke names compuestos (nombre + vulgaridad
+//  concatenada) se detectan correctamente. 1-2 muestras por idioma.
+// ──────────────────────────────────────────────────────────────────────────
+
+test('joke-names Fase 1 — DE/NL/HU/CS', async () => {
+  for (const [input, expected] of [
+    ['Klaus Pferdsohn',     'REJECTED'],   // DE
+    ['Hans Dummkopf',       'REJECTED'],   // DE
+    ['Jan Kankerhond',      'REJECTED'],   // NL
+    ['Willem Klootzak',     'REJECTED'],   // NL
+    ['Lajos Kurvajo',       'REJECTED'],   // HU
+    ['Tibor Baszottul',     'REJECTED'],   // HU
+    ['Pavel Kokothlavy',    'REJECTED'],   // CS
+    ['Jan Kurvasyn',        'REJECTED'],   // CS
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('joke-names Fase 1 — IT/RO/EL', async () => {
+  for (const [input, expected] of [
+    ['Marco Sucami',         'REJECTED'],  // IT
+    ['Luca Pisaminchia',     'REJECTED'],  // IT
+    ['Ion Muieta',           'REJECTED'],  // RO
+    ['Florin Pulamea',       'REJECTED'],  // RO
+    ['Yannis Malakopanas',   'REJECTED'],  // EL
+    ['Nikos Paparxidas',     'REJECTED'],  // EL
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('joke-names Fase 1 — PL/RU/TR/AR/HE', async () => {
+  for (const [input, expected] of [
+    ['Jan Kurwicki',          'REJECTED'],  // PL
+    ['Maria Pizdowska',       'REJECTED'],  // PL
+    ['Ivan Pizdatov',         'REJECTED'],  // RU
+    ['Olga Suchkina',         'REJECTED'],  // RU
+    ['Mehmet Sikerim',        'REJECTED'],  // TR
+    ['Ali Yarrakov',          'REJECTED'],  // TR
+    ['Khalid Ibnelhmir',      'REJECTED'],  // AR
+    ['Walid Ibnelqahba',      'REJECTED'],  // AR
+    ['Yossi Benkalba',        'REJECTED'],  // HE
+    ['David Zayinov',         'REJECTED'],  // HE
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('joke-names Fase 1 — ZH/JA/KO', async () => {
+  for (const [input, expected] of [
+    ['Wang Caonima',         'REJECTED'],  // ZH
+    ['Liu Shabide',          'REJECTED'],  // ZH
+    ['Tanaka Manko',         'REJECTED'],  // JA
+    ['Yamada Chinpo',        'REJECTED'],  // JA
+    ['Kim Ssibal',           'REJECTED'],  // KO
+    ['Park Jiral',           'REJECTED'],  // KO
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, expected, `${input} → ${r.verdict}`);
+  }
+});
+
+test('joke-names Fase 1 — no rompe nombres legítimos cercanos', async () => {
+  // Después de añadir ~280 joke names, verificamos que no creamos falsos
+  // positivos con nombres reales cuyos componentes están en blocklists.
+  const legitimate = [
+    'Klaus Müller',         // DE — Klaus es legítimo, Müller también
+    'Hans Schmidt',         // DE
+    'Jan de Vries',         // NL
+    'Pavel Novák',          // CS
+    'Marco Rossi',          // IT
+    'Ion Popescu',          // RO
+    'Yannis Antoniou',      // EL
+    'Anna Kowalski',        // PL
+    'Olga Smirnova',        // RU
+    'Mehmet Yilmaz',        // TR
+    'Ahmed Hassan',         // AR
+    'David Cohen',          // HE
+    'Wang Wei',             // ZH
+    'Tanaka Hiroshi',       // JA
+    'Kim Min-jun',          // KO
+  ];
+  for (const v of legitimate) {
+    const r = await validateName(v, OPTS);
+    assert.equal(r.verdict, 'ALLOWED', `FP en "${v}" (got ${r.verdict})`);
+  }
+});
