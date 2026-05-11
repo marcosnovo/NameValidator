@@ -48,6 +48,33 @@ export const czechJokeNames = [
   ['kokotek',          'insulto vulgar checo'],
   ['hovnozzraty',      'insulto escatológico checo'],
   ['svinackazjebana',  'expresión vulgar compuesta'],
+
+  // ── Apellidos-broma: nombre checo + vulgaridad concatenada
+  ['pavelkokothlavy',      '"Pavel Kokothlavý" → cabeza-de-polla'],
+  ['jankurvasyn',          '"Jan Kurvasyn" → hijo de puta checo'],
+  ['petrpicovina',         '"Petr Picovina" → "una mierda/chorrada"'],
+  ['tomascurakmaly',       '"Tomáš Čurák malý" → pene pequeño'],
+  ['martinprdelka',        '"Martin Prdelka" → culito vulgar'],
+  ['lukasdoprdele',        '"Lukáš, do prdele" → "al culo/joder!"'],
+  ['davidmrdka',           '"David Mrdka" → polvo/follada vulgar'],
+  ['filipzjebanej',        '"Filip Zjebanej" → jodido/destrozado'],
+  ['ondrejhovnoplnej',     '"Ondřej Hovno plný" → lleno de mierda'],
+  ['vaclavkokotina',       '"Václav Kokotina" → gilipollez/chorrada'],
+  ['stanislavzmrdfia',     '"Stanislav Zmrd Fia" → hijo de cabrón'],
+  ['michalsracka',         '"Michal Sračka" → cagada/diarrea'],
+  ['adamparchant',         '"Adam Parchant" → bastardo'],
+  ['jiribuzerant',         '"Jiří Buzerant" → slur homófobo'],
+  ['miroslavjebnutej',     '"Miroslav Jebnutej" → jodido/loco'],
+  ['radekpitomec',         '"Radek Pitomec" → imbécil'],
+  ['vojtechsvinepraseci',  '"Vojtěch Svině prasečí" → cerda asquerosa'],
+  ['zbynekkurevsky',       '"Zbyněk Kurevský" → putañero'],
+  ['rostislavmrdoch',      '"Rostislav Mrdoch" → follador vulgar'],
+  ['bohuslavhovenka',      '"Bohuslav Hovínka" → mierdecilla'],
+  ['drahomirpicusmaly',    '"Drahomír Picus malý" → coñito pequeño'],
+  ['emilkurvazena',        '"Emil Kurvažena" → puta-mujer'],
+  ['frantisekzmrdej',      '"František Zmrdej" → jodido/cabrón'],
+  ['hynekdoprdelejdi',     '"Hynek do prdele jdi" → vete al culo'],
+  ['ivobuznasy',           '"Ivo Buznasy" → maricón peyorativo'],
 ];
 
 export const czechExactOnly = new Set([

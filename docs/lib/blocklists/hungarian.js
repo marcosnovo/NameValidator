@@ -86,6 +86,33 @@ export const hungarianJokeNames = [
   ['rohadekfia',       'insulto húngaro grave'],
   ['gecigyerek',       'insulto vulgar húngaro'],
   ['ciganymentes',     'referencia política anti-romaní'],
+
+  // ── Apellidos-broma: nombre húngaro + vulgaridad concatenada
+  ['lajoskurvajo',         '"Lajos, kurva jó" → jodidamente bueno'],
+  ['attilabaszomanyad',    '"Attila baszom anyád" → me follo a tu madre'],
+  ['zoltanfaszfej',        '"Zoltán Faszfej" → cara-de-polla'],
+  ['gaborseggfej',         '"Gábor Seggfej" → cara-de-culo'],
+  ['imrekocsogfej',        '"Imre Köcsögfej" → slur homófobo'],
+  ['belakurvanagy',        '"Béla, kurva nagy" → jodidamente grande'],
+  ['ferencbaszdmegot',     '"Ferenc, baszd meg ott" → "fóllatelo ahí"'],
+  ['istvanszarházi',       '"István Szarházi" → casa-de-mierda'],
+  ['janosfaszkalap',       '"János Faszkalap" → sombrero-de-polla'],
+  ['karolyrohadtul',       '"Károly Rohadtul" → jodidamente podrido'],
+  ['miklospicsaba',        '"Miklós, picsába!" → "al coño!" maldición'],
+  ['sandorgecigyerek',     '"Sándor Gecigyerek" → niño-semen insulto'],
+  ['tamasbuziknak',        '"Tamás Buziknak" → para los maricones'],
+  ['vilmosfaszbafingo',    '"Vilmos Faszbafingó" → pedo-en-la-polla vulgar'],
+  ['zsoltmenjapicsaba',    '"Zsolt, menj a picsába" → vete al coño'],
+  ['arpadlofaszt',         '"Árpád, lófaszt" → "una mierda/un carajo"'],
+  ['gezarohadjmeg',        '"Géza, rohadj meg" → púdrete'],
+  ['kalmanribancfia',      '"Kálmán Ribancfia" → hijo de puta'],
+  ['laszlofasszopo',       '"László Fasszopó" → chupapollas'],
+  ['ottosegglyuk',         '"Ottó Segglyuk" → agujero del culo'],
+  ['rezsokurvaanyjat',     '"Rezső, kurva anyját" → la puta madre'],
+  ['szabolcskocsogvagy',   '"Szabolcs, köcsög vagy" → eres un maricón'],
+  ['tiborbaszottul',       '"Tibor Baszottul" → jodidamente'],
+  ['vencelszemetember',    '"Vencel Szemétember" → hombre-basura'],
+  ['zsigmondhulyegyerek',  '"Zsigmond Hülyegyerek" → niño-tonto'],
 ];
 
 export const hungarianExactOnly = new Set([
