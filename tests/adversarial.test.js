@@ -169,3 +169,90 @@ test('adversarial — NO false positives en nombres legítimos', async () => {
     `False positives en nombres legítimos: ${fails.join(', ')}`,
   );
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Fase 2 PR-A — Hardening de evasión
+//  Gap-1 zero-width / Gap-2 latín extendido / Gap-3 rn↔m vv↔w / Gap-5 leet
+// ──────────────────────────────────────────────────────────────────────────
+
+test('Gap-1 — zero-width chars (U+200B/U+200C/U+200D) no evaden detector de jugador', async () => {
+  // El atacante inserta caracteres invisibles entre las letras de un
+  // jugador propio para evadir el detector context-aware. Sin defensa,
+  // "Vi​nicius mono" pasa porque el token "vi​nicius" no matchea
+  // playerNameTokens.has("vinicius").
+  for (const input of [
+    'Vi​nicius mono',     // ZWSP entre i y n
+    'Vini‌cius macaco',   // ZWNJ entre i y c
+    'Bellingha‍m macaco', // ZWJ entre a y m
+    'Vini﻿cius singe',    // BOM entre i y c (francés "mono")
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, 'REJECTED', `${JSON.stringify(input)} debería caer (got ${r.verdict})`);
+  }
+});
+
+test('Gap-2 — Latín extendido B / IPA (ı, đ, ø, ł, æ, þ) no evade detección', async () => {
+  // NFKC y NFD no descomponen estos caracteres. Sin extender CONFUSABLE_MAP
+  // el atacante escribe "Vınıcıus" (ı turca) y se cuela. También cubre
+  // ł (polaco), đ (croata), ø (escandinavo), æ/œ (anglo/francés).
+  for (const input of [
+    'vınıcıus mono',           // ı turca (U+0131)
+    'Bellıngham macaco',       // ı turca
+    'Vınıcıus macaco',         // ı turca
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, 'REJECTED', `${input} debería caer (got ${r.verdict})`);
+  }
+});
+
+test('Gap-3 — Homoglifos tipográficos rn↔m (LED Bernabéu) — Bellingharn → Bellingham', async () => {
+  // Pantallas LED renderizan "rn" y "m" idénticos. "Bellingharn" pasa el
+  // detector de jugador si no hay visualNormalize en tokens.
+  for (const input of [
+    'Bellingharn mono',        // rn→m → Bellingham
+    'Bellingharn macaco',      // rn→m + slur racista
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, 'REJECTED', `${input} debería caer (got ${r.verdict})`);
+  }
+  // Control: rn legítimo en nombres reales NO debe caer
+  const r = await validateName('Bernardo Silva', OPTS);
+  assert.notEqual(r.verdict, 'REJECTED', 'Bernardo NO debería caer por rn→m');
+});
+
+test('Gap-5 — Multi-char leet (|>, \\/, |-|, ()) se decodifica', async () => {
+  // ASCII-art leet clásica del 4chan/foros. El char-a-char no la pilla.
+  for (const input of [
+    'P|>UTA Garcia',           // |> → p → puta
+    'P|>uta Lopez',            // mixed case con |> al inicio
+  ]) {
+    const r = await validateName(input, OPTS);
+    assert.equal(r.verdict, 'REJECTED', `${input} debería caer (got ${r.verdict})`);
+  }
+});
+
+test('PR-A no introduce regresiones en nombres legítimos con chars especiales', async () => {
+  // Verifica que la ampliación del CONFUSABLE_MAP con latín extendido NO
+  // rompe nombres legítimos europeos que usan estos caracteres.
+  const legitimate = [
+    'Søren Hansen',            // ø danés
+    'Bjørn Pedersen',          // ø noruego
+    'Łukasz Kowalski',         // ł polaco
+    'Đorđe Petrović',          // đ serbio
+    'Þór Þórsson',             // þ islandés
+    'Æsa Æsa',                 // æ feroés
+    'François Hollande',       // ç francés (control)
+    'María García',            // base hispana (control)
+    'Vinicius Junior',         // jugador legítimo
+    'Bellingham Jude',         // jugador legítimo sin homoglifo
+  ];
+  const fails = [];
+  for (const v of legitimate) {
+    const r = await validateName(v, OPTS);
+    if (r.verdict === 'REJECTED') fails.push(`${v} → ${r.verdict}`);
+  }
+  assert.equal(
+    fails.length, 0,
+    `Falsos positivos por latin-extended: ${fails.join(', ')}`,
+  );
+});
