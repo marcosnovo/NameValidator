@@ -66,7 +66,40 @@ const CONFUSABLE_MAP = {
   // ── Latin Extended caracteres que parecen latinos pero no se normalizan
   //    bien con NFD
   'ɑ': 'a', 'ɡ': 'g', 'ɪ': 'i', 'ɴ': 'n', 'ѕ': 's',
+  // ── Latín extendido B / IPA / fonético (Fase 2 PR-A — Gap-2)
+  //    NFKC NO los descompone y NFD tampoco — sin esta tabla un atacante
+  //    escribe "Đoro Meło" o "Vınıcıus" (con ı turca) y se cuela.
+  'ø': 'o', 'Ø': 'O',
+  'đ': 'd', 'Đ': 'D',
+  'ł': 'l', 'Ł': 'L',
+  'ƒ': 'f', 'Ƒ': 'F',
+  'þ': 'th', 'Þ': 'TH',
+  'ð': 'd',  'Ð': 'D',
+  'ı': 'i',  'İ': 'I',           // turca: i sin punto / I con punto
+  'ȷ': 'j',
+  'ħ': 'h', 'Ħ': 'H',
+  'ĸ': 'k',
+  'ŋ': 'n', 'Ŋ': 'N',
+  'œ': 'oe','Œ': 'OE',
+  'æ': 'ae','Æ': 'AE',
+  // ── IPA / fonético extendido (alfabetos africanos, etc.)
+  'ɓ': 'b', 'ɖ': 'd', 'ʈ': 't', 'ƥ': 'p', 'ɢ': 'g',
+  'ʟ': 'l', 'ʀ': 'r', 'ʜ': 'h', 'ɲ': 'n', 'ɸ': 'f',
+  'ɵ': 'o', 'ʃ': 's', 'ƨ': 's', 'ƈ': 'c', 'ƙ': 'k',
+  'ɟ': 'j', 'ɬ': 'l', 'ɮ': 'l', 'ʒ': 'z', 'ƀ': 'b',
+  'ƕ': 'w', 'ɣ': 'g', 'ɔ': 'o', 'ɛ': 'e', 'ʌ': 'v',
+  'ǝ': 'e', 'ɘ': 'e',
 };
+
+// Caracteres invisibles que un atacante inserta para romper la detección sin
+// que visualmente cambie nada. Cubre: SOFT HYPHEN (U+00AD), zero-width
+// space/non-joiner/joiner (U+200B-U+200D), LRM/RLM (U+200E/F), directional
+// embeddings/overrides (U+202A-U+202E), WORD JOINER (U+2060) y la familia
+// FUNCTION APPLICATION..ZERO WIDTH NO-BREAK SPACE (U+2061-U+206F, U+FEFF),
+// Mongolian Vowel Separator (U+180E), Hangul filler (U+3164), Variation
+// Selectors (U+FE00-U+FE0F) y TAG characters (U+E0000-U+E007F).
+const INVISIBLE_CHARS_RE =
+  /[­᠎​-‏‪-‮⁠-⁯ㅤ︀-️﻿]|[\u{E0000}-\u{E007F}]/gu;
 
 // Reemplaza confusables por su equivalente ASCII canónico.
 //
@@ -80,6 +113,11 @@ const CONFUSABLE_MAP = {
 // También elimina marcas combinantes (Zalgo: V̴̢̛̫̲̥̅) usando \p{M}.
 function unconfuse(s) {
   if (!s) return '';
+  // Paso 0 (Gap-1): elimina caracteres invisibles (zero-width chars,
+  // direction overrides, etc.) ANTES de cualquier otra normalización. Sin
+  // esto un atacante mete U+200B entre letras de "Vinicius" y rompe el
+  // detector de jugadores (que después activa el context-aware racism).
+  s = s.replace(INVISIBLE_CHARS_RE, '');
   // Paso 1: NFKC normaliza fullwidth + math alphanumeric + ligaduras.
   s = s.normalize('NFKC');
   // Paso 2: quitamos cualquier marca combinante remanente (Zalgo defense).
@@ -90,6 +128,50 @@ function unconfuse(s) {
     out += CONFUSABLE_MAP[ch] ?? ch;
   }
   return out;
+}
+
+// Multi-char leet (Fase 2 PR-A — Gap-5). Reemplaza ASCII-art clásica que
+// el atacante usa cuando el LEET_MAP char-a-char no le sirve:
+//   P|>UTA       → PpUTA   → puta (|> simula la silueta de la P)
+//   P\/T@        → PvT@    → pvta → puta tras deLeet (@ ya cubierto)
+//   |\|0VAT0     → N0VAT0  → novato tras deLeet
+//   |-|UEVON     → HUEVON
+//   ()RGI@       → ORGI@   → orgia tras deLeet
+//
+// ORDEN: las patrones MÁS largas primero para no romper sub-coincidencias.
+function multiCharLeet(s) {
+  if (!s) return '';
+  return s
+    .replace(/\\\/\\\//g, 'w')   // \/\/ → w (clásica VV)
+    .replace(/\|-\|/g, 'h')      //  |-|  → h
+    .replace(/\|\\\|/g, 'n')     //  |\|  → n
+    .replace(/\|\/\|/g, 'm')     //  |/|  → m
+    .replace(/\(\)/g, 'o')       //  ()   → o
+    .replace(/\[\]/g, 'o')       //  []   → o
+    .replace(/\{\}/g, 'o')       //  {}   → o
+    .replace(/\|>/g, 'p')        //  |>   → p
+    .replace(/<\|/g, 'q')        //  <|   → q
+    .replace(/\\\//g, 'v')       //  \/   → v
+    .replace(/\/\\/g, 'a')       //  /\   → a
+    .replace(/vv/g, 'w');        //  vv   → w (típico bypass)
+}
+
+// Vista de "homoglifos tipográficos" — caracteres ASCII que, escritos en
+// pantalla LED del Bernabéu, son visualmente INDISTINGUIBLES de otros:
+//   ▸ rn ↔ m  ("Bellingharn" parece "Bellingham" exacto en LED)
+//   ▸ vv ↔ w  (típico clavar dos uves para imitar W)
+//
+// Sin esta vista, "Bellingharn" no matchea playerNameTokens y por tanto
+// el detector context-aware de racism queda desactivado para el resto del
+// input. Es el bypass más práctico hoy contra el HALO.
+//
+// Nota: descartamos `cl→d` aunque es visualmente válido, porque crea
+// falsos positivos en apellidos legítimos (Clark, Clemente, Eclipse…).
+function visualNormalize(s) {
+  if (!s) return '';
+  return s
+    .replace(/rn/g, 'm')
+    .replace(/vv/g, 'w');
 }
 
 // Quita diacríticos: á→a, é→e, ñ→n, ç→c, ü→u, ø→o…
@@ -474,10 +556,15 @@ function buildVariants(raw) {
   const trimmed = collapseSpaces(unconfused);
   const lower = trimmed.toLowerCase();
   const noDiacritics = stripDiacritics(lower);
-  const deLeeted = deLeet(noDiacritics);
+  // Multi-char leet ANTES de deLeet — convierte |>, \/, () , |-|, etc. en
+  // sus letras correspondientes para que el char-a-char no se las pierda.
+  const multiLeeted = multiCharLeet(noDiacritics);
+  const deLeeted = deLeet(multiLeeted);
   const concatNoSpaces = lettersOnly(deLeeted);
   const dedupedConcat = dedupeRuns(concatNoSpaces);
   const reversedConcat = concatNoSpaces.split('').reverse().join('');
+  // Vista visual: rn→m, vv→w, cl→d. Cubre la confusión tipográfica del LED.
+  const visualConcat = visualNormalize(concatNoSpaces);
   const phoneticEsView = phoneticEs(concatNoSpaces);
   const phoneticEnView = phoneticEn(concatNoSpaces);
   const phoneticFrView = phoneticFr(concatNoSpaces);
@@ -500,6 +587,9 @@ function buildVariants(raw) {
 
   // Versión "tokenizada": separa por espacio y filtra vacíos.
   const tokens = deLeeted.split(' ').map(lettersOnly).filter(Boolean);
+  // Tokens con visualNormalize aplicado (rn→m, vv→w). Permite que el
+  // detector de jugadores reconozca "Bellingharn"→"bellingham" como token.
+  const visualTokens = tokens.map(visualNormalize);
 
   return {
     raw,                  // tal cual lo escribió el usuario
@@ -510,6 +600,7 @@ function buildVariants(raw) {
     concatNoSpaces,       // todo junto, sólo letras  ←  ★ la vista clave
     dedupedConcat,        // con runs colapsados
     reversedConcat,       // al revés
+    visualConcat,         // ★ Gap-3: rn→m, vv→w, cl→d (LED tipográfico)
     phoneticEs: phoneticEsView, // ★ b↔v, h muda, ll→y, w→gu, seseo
     phoneticEn: phoneticEnView, //   ph→f, ck→k
     phoneticFr: phoneticFrView, //   qu→k, ç→s, ph→f
@@ -530,6 +621,7 @@ function buildVariants(raw) {
     phoneticNl: phoneticNlView, //   sch→s, ij→i, oe→u, eu→o
     phoneticCs: phoneticCsView, //   ch→h, dobles colapsadas
     tokens,               // ['aitor', 'tilla']
+    visualTokens,         // ['bellingham', ...] cuando el input es "Bellingharn"
   };
 }
 
@@ -539,6 +631,8 @@ export {
   deLeet,
   lettersOnly,
   unconfuse,
+  multiCharLeet,
+  visualNormalize,
   phoneticEs,
   phoneticEn,
   phoneticFr,

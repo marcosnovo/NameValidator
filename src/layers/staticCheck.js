@@ -426,6 +426,7 @@ function checkProfanityList(list, exactOnlySet, lang, variants, issues) {
     variants.concatNoSpaces,
     variants.dedupedConcat,
     variants.reversedConcat,
+    variants.visualConcat,        // Gap-3: rn→m, vv→w, cl→d (LED tipográfico)
     variants.deLeeted,
     variants.noDiacritics,
   ];
@@ -720,9 +721,18 @@ function detectPlayerInsultContext(variants, issues, ownPlayerTokens, contextId)
     ? new Set([...ownPlayerTokens, ...playerNameTokens])
     : playerNameTokens;
 
-  // ¿Hay algún token que sea un jugador famoso?
-  const playerToken = tokens.find((t) => playerSet.has(t));
-  if (!playerToken) return;
+  // ¿Hay algún token que sea un jugador famoso? Probamos primero la vista
+  // tokens normal y luego la vista visualTokens (rn→m, vv→w). Esto cubre
+  // el bypass clásico "Bellingharn mono" en pantalla LED del Bernabéu,
+  // donde rn es visualmente idéntico a m. Sin esta capa el detector
+  // racism-context queda desactivado para el resto del input.
+  const visualTokens = variants.visualTokens || tokens;
+  let playerToken = tokens.find((t) => playerSet.has(t));
+  if (!playerToken) {
+    const idx = visualTokens.findIndex((t) => playerSet.has(t));
+    if (idx < 0) return;
+    playerToken = visualTokens[idx];
+  }
 
   // ¿Hay algún token que sea un slur contextual en cualquier idioma?
   for (const [lang, slurs] of Object.entries(contextSensitiveSlurs)) {
